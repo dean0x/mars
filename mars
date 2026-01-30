@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# Mars CLI - Multi-Repo Workspace Manager
+# https://github.com/<username>/mars
+
+set -euo pipefail
+
+MARS_VERSION="0.1.0"
+
+# Determine script directory for sourcing libs
+MARS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source libraries (in development mode from lib/, in distribution they're bundled)
+if [[ -d "$MARS_SCRIPT_DIR/lib" ]]; then
+    # Development mode - source from lib/
+    source "$MARS_SCRIPT_DIR/lib/ui.sh"
+    source "$MARS_SCRIPT_DIR/lib/yaml.sh"
+    source "$MARS_SCRIPT_DIR/lib/config.sh"
+    source "$MARS_SCRIPT_DIR/lib/git.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/init.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/clone.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/status.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/branch.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/checkout.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/sync.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/exec.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/add.sh"
+    source "$MARS_SCRIPT_DIR/lib/commands/list.sh"
+fi
+# In bundled mode, all functions are already in this file
+
+# --- Help ---
+show_help() {
+    cat << EOF
+Mars - Multi-Repo Workspace Manager v$MARS_VERSION
+
+Usage: mars <command> [options]
+
+Commands:
+  init                    Initialize a new workspace
+  clone [--tag TAG]       Clone configured repositories
+  status [--tag TAG]      Show status of all repositories
+  branch NAME [--tag TAG] Create a branch on repositories
+  checkout BRANCH [--tag TAG] Checkout a branch on repositories
+  sync [--tag TAG]        Pull latest changes on repositories
+  exec "CMD" [--tag TAG]  Run a command in each repository
+  add URL [--tags TAGS]   Add a repository to the workspace
+  list [--tag TAG]        List configured repositories
+
+Options:
+  --tag TAG       Filter repositories by tag
+  --tags TAGS     Comma-separated list of tags (for add)
+  --force, -f     Force operation (clone, checkout)
+  --rebase, -r    Use rebase when syncing
+  --quiet, -q     Suppress command output (exec)
+  --help, -h      Show this help
+  --version, -v   Show version
+
+Examples:
+  mars init
+  mars add git@github.com:org/frontend.git --tags frontend,web
+  mars add git@github.com:org/backend.git --tags backend,api
+  mars clone
+  mars status
+  mars branch feature-auth
+  mars checkout main
+  mars sync --rebase
+  mars exec "npm install" --tag frontend
+
+Documentation: https://github.com/<username>/mars
+EOF
+}
+
+show_version() {
+    printf 'Mars v%s\n' "$MARS_VERSION"
+}
+
+# --- Main ---
+main() {
+    local command="${1:-}"
+
+    # Handle no arguments
+    if [[ -z "$command" ]]; then
+        show_help
+        return 0
+    fi
+
+    # Shift off the command
+    shift || true
+
+    case "$command" in
+        init)
+            cmd_init "$@"
+            ;;
+        clone)
+            cmd_clone "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        branch)
+            cmd_branch "$@"
+            ;;
+        checkout)
+            cmd_checkout "$@"
+            ;;
+        sync)
+            cmd_sync "$@"
+            ;;
+        exec)
+            cmd_exec "$@"
+            ;;
+        add)
+            cmd_add "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        --help|-h|help)
+            show_help
+            ;;
+        --version|-v|version)
+            show_version
+            ;;
+        *)
+            printf 'Unknown command: %s\n\n' "$command" >&2
+            show_help >&2
+            return 1
+            ;;
+    esac
+}
+
+main "$@"

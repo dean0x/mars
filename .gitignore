@@ -1,0 +1,15 @@
+# Workspace repos (created by mars clone)
+repos/
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Test artifacts
+/tmp/

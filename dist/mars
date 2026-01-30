@@ -1,0 +1,2127 @@
+#!/usr/bin/env bash
+# Mars CLI - Multi-Repo Workspace Manager
+# https://github.com/<username>/mars
+# This is a bundled distribution - do not edit
+
+set -euo pipefail
+
+MARS_VERSION="0.1.0"
+
+
+# === lib/ui.sh ===
+# Mars CLI - UI Components (Clack-style)
+# Provides terminal UI primitives with Unicode/ASCII fallback
+
+# Detect color support
+if [[ -t 1 ]] && [[ "${TERM:-}" != "dumb" ]]; then
+    UI_COLOR=1
+else
+    UI_COLOR=0
+fi
+
+# Detect Unicode support
+if [[ "${LANG:-}" == *UTF-8* ]] || [[ "${LC_ALL:-}" == *UTF-8* ]]; then
+    UI_UNICODE=1
+else
+    UI_UNICODE=0
+fi
+
+# --- Symbols ---
+if [[ "$UI_UNICODE" -eq 1 ]]; then
+    S_STEP_ACTIVE="◆"
+    S_STEP_DONE="◇"
+    S_STEP_ERROR="▲"
+    S_STEP_CANCEL="■"
+    S_BAR="│"
+    S_BAR_START="┌"
+    S_BAR_END="└"
+    S_SPINNER_FRAMES=("◒" "◐" "◓" "◑")
+    S_CHECKBOX_ON="◼"
+    S_CHECKBOX_OFF="◻"
+    S_RADIO_ON="●"
+    S_RADIO_OFF="○"
+else
+    S_STEP_ACTIVE="*"
+    S_STEP_DONE="+"
+    S_STEP_ERROR="!"
+    S_STEP_CANCEL="x"
+    S_BAR="|"
+    S_BAR_START="/"
+    S_BAR_END="\\"
+    S_SPINNER_FRAMES=("-" "\\" "|" "/")
+    S_CHECKBOX_ON="[x]"
+    S_CHECKBOX_OFF="[ ]"
+    S_RADIO_ON="(*)"
+    S_RADIO_OFF="( )"
+fi
+
+# --- Colors ---
+ui_reset() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[0m' || true
+}
+
+ui_cyan() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[36m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+ui_green() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[32m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+ui_yellow() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[33m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+ui_red() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[31m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+ui_dim() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[2m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+ui_bold() {
+    [[ "$UI_COLOR" -eq 1 ]] && printf '\033[1m%s\033[0m' "$1" || printf '%s' "$1"
+}
+
+# --- Bar Components ---
+ui_bar() {
+    ui_dim "$S_BAR"
+}
+
+ui_bar_start() {
+    ui_dim "$S_BAR_START"
+}
+
+ui_bar_end() {
+    ui_dim "$S_BAR_END"
+}
+
+# --- Layout Components ---
+
+# Intro: Start of a section
+# Usage: ui_intro "Title"
+ui_intro() {
+    local title="$1"
+    printf '%s  %s\n' "$(ui_bar_start)" "$(ui_cyan "$title")"
+    printf '%s\n' "$(ui_bar)"
+}
+
+# Outro: End of a section
+# Usage: ui_outro "Message"
+ui_outro() {
+    local message="$1"
+    printf '%s\n' "$(ui_bar)"
+    printf '%s  %s\n' "$(ui_bar_end)" "$(ui_green "$message")"
+}
+
+# Outro with cancel
+ui_outro_cancel() {
+    local message="$1"
+    printf '%s\n' "$(ui_bar)"
+    printf '%s  %s\n' "$(ui_bar_end)" "$(ui_red "$message")"
+}
+
+# Step: Active prompt
+# Usage: ui_step "Label"
+ui_step() {
+    local label="$1"
+    printf '%s  %s\n' "$(ui_cyan "$S_STEP_ACTIVE")" "$label"
+}
+
+# Step done: Completed step
+# Usage: ui_step_done "Label" "value"
+ui_step_done() {
+    local label="$1"
+    local value="${2:-}"
+    if [[ -n "$value" ]]; then
+        printf '%s  %s %s\n' "$(ui_green "$S_STEP_DONE")" "$label" "$(ui_dim "$value")"
+    else
+        printf '%s  %s\n' "$(ui_green "$S_STEP_DONE")" "$label"
+    fi
+}
+
+# Step error
+ui_step_error() {
+    local message="$1"
+    printf '%s  %s\n' "$(ui_yellow "$S_STEP_ERROR")" "$(ui_yellow "$message")"
+}
+
+# Step cancel
+ui_step_cancel() {
+    local message="$1"
+    printf '%s  %s\n' "$(ui_red "$S_STEP_CANCEL")" "$(ui_red "$message")"
+}
+
+# Info line (continuation)
+ui_info() {
+    local message="$1"
+    printf '%s  %s\n' "$(ui_bar)" "$message"
+}
+
+# Empty bar line
+ui_bar_line() {
+    printf '%s\n' "$(ui_bar)"
+}
+
+# --- Interactive Components ---
+
+# Text input
+# Usage: result=$(ui_text "Prompt" "default")
+# Returns: user input or default
+ui_text() {
+    local prompt="$1"
+    local default="${2:-}"
+    local input
+
+    ui_step "$prompt"
+    if [[ -n "$default" ]]; then
+        printf '%s  ' "$(ui_bar)"
+        read -r -p "" -e -i "$default" input
+    else
+        printf '%s  ' "$(ui_bar)"
+        read -r input
+    fi
+
+    # Return default if empty
+    if [[ -z "$input" ]]; then
+        input="$default"
+    fi
+
+    printf '%s' "$input"
+}
+
+# Confirm (y/n)
+# Usage: if ui_confirm "Question?"; then ... fi
+ui_confirm() {
+    local prompt="$1"
+    local default="${2:-y}"
+    local hint
+    local response
+
+    if [[ "$default" == "y" ]]; then
+        hint="Y/n"
+    else
+        hint="y/N"
+    fi
+
+    ui_step "$prompt ($hint)"
+    printf '%s  ' "$(ui_bar)"
+    read -r -n 1 response
+    printf '\n'
+
+    # Handle empty (use default)
+    if [[ -z "$response" ]]; then
+        response="$default"
+    fi
+
+    [[ "$response" =~ ^[Yy]$ ]]
+}
+
+# Select from options
+# Usage: result=$(ui_select "Prompt" "opt1" "opt2" "opt3")
+# Returns: selected option
+ui_select() {
+    local prompt="$1"
+    shift
+    local options=("$@")
+    local selected=0
+    local count=${#options[@]}
+    local key
+
+    ui_step "$prompt"
+
+    # Save cursor position and hide cursor
+    printf '\033[?25l'
+
+    while true; do
+        # Draw options
+        for i in "${!options[@]}"; do
+            if [[ $i -eq $selected ]]; then
+                printf '%s  %s %s\n' "$(ui_bar)" "$(ui_cyan "$S_RADIO_ON")" "${options[$i]}"
+            else
+                printf '%s  %s %s\n' "$(ui_bar)" "$(ui_dim "$S_RADIO_OFF")" "$(ui_dim "${options[$i]}")"
+            fi
+        done
+
+        # Read key
+        read -rsn1 key
+
+        # Handle arrow keys (escape sequences)
+        if [[ "$key" == $'\033' ]]; then
+            read -rsn2 key
+            case "$key" in
+                '[A') # Up
+                    ((selected > 0)) && ((selected--))
+                    ;;
+                '[B') # Down
+                    ((selected < count - 1)) && ((selected++))
+                    ;;
+            esac
+        elif [[ "$key" == "" ]]; then
+            # Enter pressed
+            break
+        elif [[ "$key" == "j" ]]; then
+            ((selected < count - 1)) && ((selected++))
+        elif [[ "$key" == "k" ]]; then
+            ((selected > 0)) && ((selected--))
+        fi
+
+        # Move cursor up to redraw
+        printf '\033[%dA' "$count"
+    done
+
+    # Show cursor
+    printf '\033[?25h'
+
+    printf '%s' "${options[$selected]}"
+}
+
+# --- Spinner ---
+# Usage:
+#   ui_spinner_start "Loading..."
+#   ... do work ...
+#   ui_spinner_stop "Done!" # or ui_spinner_stop
+_SPINNER_PID=""
+_SPINNER_MSG=""
+
+ui_spinner_start() {
+    local message="$1"
+    _SPINNER_MSG="$message"
+
+    (
+        local i=0
+        local frame_count=${#S_SPINNER_FRAMES[@]}
+
+        while true; do
+            printf '\r%s  %s %s' "$(ui_bar)" "$(ui_cyan "${S_SPINNER_FRAMES[$i]}")" "$message"
+            ((i = (i + 1) % frame_count))
+            sleep 0.1
+        done
+    ) &
+    _SPINNER_PID=$!
+
+    # Ensure cleanup on script exit
+    trap 'ui_spinner_stop 2>/dev/null' EXIT
+}
+
+ui_spinner_stop() {
+    local final_message="${1:-}"
+
+    if [[ -n "$_SPINNER_PID" ]] && kill -0 "$_SPINNER_PID" 2>/dev/null; then
+        kill "$_SPINNER_PID" 2>/dev/null
+        wait "$_SPINNER_PID" 2>/dev/null || true
+    fi
+    _SPINNER_PID=""
+
+    # Clear spinner line
+    printf '\r\033[K'
+
+    # Show final message if provided
+    if [[ -n "$final_message" ]]; then
+        ui_step_done "$final_message"
+    fi
+}
+
+ui_spinner_error() {
+    local message="$1"
+
+    if [[ -n "$_SPINNER_PID" ]] && kill -0 "$_SPINNER_PID" 2>/dev/null; then
+        kill "$_SPINNER_PID" 2>/dev/null
+        wait "$_SPINNER_PID" 2>/dev/null || true
+    fi
+    _SPINNER_PID=""
+
+    printf '\r\033[K'
+    ui_step_error "$message"
+}
+
+# --- Progress ---
+# Usage: ui_progress "message" current total
+ui_progress() {
+    local message="$1"
+    local current="$2"
+    local total="$3"
+    local percent=$((current * 100 / total))
+    local bar_width=20
+    local filled=$((percent * bar_width / 100))
+    local empty=$((bar_width - filled))
+
+    printf '\r%s  ' "$(ui_bar)"
+    printf '%s [' "$message"
+    printf '%*s' "$filled" '' | tr ' ' '='
+    printf '%*s' "$empty" '' | tr ' ' ' '
+    printf '] %d%%' "$percent"
+}
+
+# --- Table ---
+# Usage: ui_table_header "Col1" "Col2" "Col3"
+#        ui_table_row "val1" "val2" "val3"
+_TABLE_WIDTHS=()
+
+ui_table_header() {
+    local cols=("$@")
+    _TABLE_WIDTHS=()
+
+    printf '%s  ' "$(ui_bar)"
+    for col in "${cols[@]}"; do
+        printf '%-20s' "$(ui_bold "$col")"
+        _TABLE_WIDTHS+=("20")
+    done
+    printf '\n'
+
+    # Separator
+    printf '%s  ' "$(ui_bar)"
+    for _ in "${cols[@]}"; do
+        printf '%-20s' "$(ui_dim "────────────────────")"
+    done
+    printf '\n'
+}
+
+ui_table_row() {
+    local vals=("$@")
+
+    printf '%s  ' "$(ui_bar)"
+    for val in "${vals[@]}"; do
+        printf '%-20s' "$val"
+    done
+    printf '\n'
+}
+
+# --- Utilities ---
+
+# Clear line
+ui_clear_line() {
+    printf '\r\033[K'
+}
+
+# Move cursor up N lines
+ui_cursor_up() {
+    local n="${1:-1}"
+    printf '\033[%dA' "$n"
+}
+
+# Hide cursor
+ui_cursor_hide() {
+    printf '\033[?25l'
+}
+
+# Show cursor
+ui_cursor_show() {
+    printf '\033[?25h'
+}
+
+# Ensure cursor is shown on exit
+trap 'ui_cursor_show' EXIT
+
+# === lib/yaml.sh ===
+# Mars CLI - Minimal YAML Parser
+# Parses mars.yaml format only - not a general YAML parser
+# Compatible with bash 3.2+ (no associative arrays)
+
+# Global state - using parallel indexed arrays instead of associative arrays
+YAML_WORKSPACE_NAME=""
+YAML_DEFAULTS_BRANCH=""
+YAML_REPO_COUNT=0
+
+# Arrays indexed by repo number (0, 1, 2, ...)
+# Access: ${YAML_REPO_URLS[$i]}
+YAML_REPO_URLS=()
+YAML_REPO_PATHS=()
+YAML_REPO_TAGS=()
+
+yaml_parse() {
+    local file="$1"
+    local line
+    local in_repos=0
+    local in_defaults=0
+    local current_index=-1
+
+    # Reset state
+    YAML_WORKSPACE_NAME=""
+    YAML_DEFAULTS_BRANCH="main"
+    YAML_REPO_COUNT=0
+    YAML_REPO_URLS=()
+    YAML_REPO_PATHS=()
+    YAML_REPO_TAGS=()
+
+    if [[ ! -f "$file" ]]; then
+        return 1
+    fi
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$line" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Remove leading/trailing whitespace for comparison
+        local trimmed="${line#"${line%%[![:space:]]*}"}"
+        trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+
+        # Check section markers
+        if [[ "$trimmed" == "repos:" ]]; then
+            in_repos=1
+            in_defaults=0
+            continue
+        elif [[ "$trimmed" == "defaults:" ]]; then
+            in_repos=0
+            in_defaults=1
+            continue
+        elif [[ "$trimmed" == "workspace:" ]]; then
+            in_repos=0
+            in_defaults=0
+            continue
+        fi
+
+        # Parse workspace name
+        if [[ "$trimmed" =~ ^name:[[:space:]]*[\"\']?([^\"\']+)[\"\']?$ ]]; then
+            YAML_WORKSPACE_NAME="${BASH_REMATCH[1]}"
+            continue
+        fi
+
+        # Parse defaults section
+        if [[ $in_defaults -eq 1 ]]; then
+            if [[ "$trimmed" =~ ^branch:[[:space:]]*(.+)$ ]]; then
+                YAML_DEFAULTS_BRANCH="${BASH_REMATCH[1]}"
+            fi
+            continue
+        fi
+
+        # Parse repos section
+        if [[ $in_repos -eq 1 ]]; then
+            # New repo entry (starts with -)
+            if [[ "$trimmed" =~ ^-[[:space:]]*url:[[:space:]]*(.+)$ ]]; then
+                current_index=$((current_index + 1))
+                local url="${BASH_REMATCH[1]}"
+                YAML_REPO_URLS[$current_index]="$url"
+                YAML_REPO_PATHS[$current_index]=$(yaml_path_from_url "$url")
+                YAML_REPO_TAGS[$current_index]=""
+                YAML_REPO_COUNT=$((YAML_REPO_COUNT + 1))
+                continue
+            fi
+
+            # Continuation of current repo
+            if [[ $current_index -ge 0 ]]; then
+                if [[ "$trimmed" =~ ^path:[[:space:]]*(.+)$ ]]; then
+                    YAML_REPO_PATHS[$current_index]="${BASH_REMATCH[1]}"
+                elif [[ "$trimmed" =~ ^tags:[[:space:]]*\[([^\]]*)\]$ ]]; then
+                    # Parse inline array: [tag1, tag2]
+                    local tags_str="${BASH_REMATCH[1]}"
+                    # Remove spaces and quotes
+                    tags_str="${tags_str//[[:space:]]/}"
+                    tags_str="${tags_str//\"/}"
+                    tags_str="${tags_str//\'/}"
+                    YAML_REPO_TAGS[$current_index]="$tags_str"
+                fi
+            fi
+        fi
+    done < "$file"
+
+    return 0
+}
+
+# Extract repo name from URL
+# Usage: yaml_path_from_url "git@github.com:org/repo.git"
+# Returns: "repo"
+yaml_path_from_url() {
+    local url="$1"
+    local name
+
+    # Handle SSH URLs: git@github.com:org/repo.git
+    if [[ "$url" =~ ([^/:]+)\.git$ ]]; then
+        name="${BASH_REMATCH[1]}"
+    # Handle HTTPS URLs: https://github.com/org/repo.git
+    elif [[ "$url" =~ /([^/]+)\.git$ ]]; then
+        name="${BASH_REMATCH[1]}"
+    # Handle URLs without .git
+    elif [[ "$url" =~ ([^/:]+)$ ]]; then
+        name="${BASH_REMATCH[1]}"
+    else
+        name="repo"
+    fi
+
+    printf '%s' "$name"
+}
+
+# Get list of repo indices, optionally filtered by tag
+# Usage: yaml_get_repos [tag]
+# Returns: newline-separated list of indices (0, 1, 2, ...)
+yaml_get_repos() {
+    local filter_tag="${1:-}"
+    local i
+
+    for ((i = 0; i < YAML_REPO_COUNT; i++)); do
+        if [[ -z "$filter_tag" ]]; then
+            printf '%d\n' "$i"
+        else
+            local tags="${YAML_REPO_TAGS[$i]}"
+            # Check if tag is in comma-separated list
+            if [[ ",$tags," == *",$filter_tag,"* ]]; then
+                printf '%d\n' "$i"
+            fi
+        fi
+    done
+}
+
+# Get repo URL by index
+yaml_get_url() {
+    local idx="$1"
+    printf '%s' "${YAML_REPO_URLS[$idx]:-}"
+}
+
+# Get repo path by index
+yaml_get_path() {
+    local idx="$1"
+    printf '%s' "${YAML_REPO_PATHS[$idx]:-}"
+}
+
+# Get repo tags by index
+yaml_get_tags() {
+    local idx="$1"
+    printf '%s' "${YAML_REPO_TAGS[$idx]:-}"
+}
+
+# Write mars.yaml
+# Usage: yaml_write "path/to/mars.yaml"
+yaml_write() {
+    local file="$1"
+    local i
+
+    {
+        printf 'version: 1\n\n'
+        printf 'workspace:\n'
+        printf '  name: "%s"\n\n' "$YAML_WORKSPACE_NAME"
+        printf 'repos:\n'
+
+        for ((i = 0; i < YAML_REPO_COUNT; i++)); do
+            local url="${YAML_REPO_URLS[$i]}"
+            local path="${YAML_REPO_PATHS[$i]}"
+            local tags="${YAML_REPO_TAGS[$i]}"
+
+            printf '  - url: %s\n' "$url"
+
+            # Only write path if different from derived
+            local derived
+            derived=$(yaml_path_from_url "$url")
+            if [[ "$path" != "$derived" ]]; then
+                printf '    path: %s\n' "$path"
+            fi
+
+            # Write tags if present
+            if [[ -n "$tags" ]]; then
+                printf '    tags: [%s]\n' "$tags"
+            fi
+        done
+
+        printf '\ndefaults:\n'
+        printf '  branch: %s\n' "$YAML_DEFAULTS_BRANCH"
+    } > "$file"
+}
+
+# Add a repo to the config
+# Usage: yaml_add_repo "url" "path" "tags"
+yaml_add_repo() {
+    local url="$1"
+    local path="${2:-}"
+    local tags="${3:-}"
+
+    local idx=$YAML_REPO_COUNT
+
+    YAML_REPO_URLS[$idx]="$url"
+
+    if [[ -z "$path" ]]; then
+        path=$(yaml_path_from_url "$url")
+    fi
+    YAML_REPO_PATHS[$idx]="$path"
+    YAML_REPO_TAGS[$idx]="$tags"
+
+    YAML_REPO_COUNT=$((YAML_REPO_COUNT + 1))
+}
+
+# === lib/config.sh ===
+# Mars CLI - Configuration Management
+# Handles workspace detection and config loading/saving
+
+MARS_WORKSPACE_ROOT=""
+MARS_CONFIG_FILE=""
+MARS_REPOS_DIR=""
+
+# Find workspace root by searching upward for mars.yaml
+# Usage: config_find_root [start_dir]
+# Returns: 0 if found (sets MARS_WORKSPACE_ROOT), 1 if not found
+config_find_root() {
+    local start_dir="${1:-$PWD}"
+    local current="$start_dir"
+
+    while [[ "$current" != "/" ]]; do
+        if [[ -f "$current/mars.yaml" ]]; then
+            MARS_WORKSPACE_ROOT="$current"
+            MARS_CONFIG_FILE="$current/mars.yaml"
+            MARS_REPOS_DIR="$current/repos"
+            return 0
+        fi
+        current="$(dirname "$current")"
+    done
+
+    return 1
+}
+
+# Initialize workspace in current directory
+# Usage: config_init "workspace_name"
+# Returns: 0 on success, 1 if already initialized
+config_init() {
+    local workspace_name="$1"
+    local dir="${2:-$PWD}"
+
+    if [[ -f "$dir/mars.yaml" ]]; then
+        return 1
+    fi
+
+    MARS_WORKSPACE_ROOT="$dir"
+    MARS_CONFIG_FILE="$dir/mars.yaml"
+    MARS_REPOS_DIR="$dir/repos"
+
+    # Set workspace name for yaml module
+    YAML_WORKSPACE_NAME="$workspace_name"
+    YAML_DEFAULTS_BRANCH="main"
+    YAML_REPO_COUNT=0
+    YAML_REPO_URLS=()
+    YAML_REPO_PATHS=()
+    YAML_REPO_TAGS=()
+
+    # Create directory structure
+    mkdir -p "$MARS_REPOS_DIR"
+
+    # Write config
+    yaml_write "$MARS_CONFIG_FILE"
+
+    # Create .gitignore
+    printf 'repos/\n' > "$dir/.gitignore"
+
+    return 0
+}
+
+# Load configuration
+# Usage: config_load
+# Returns: 0 on success, 1 on failure
+config_load() {
+    if [[ -z "$MARS_CONFIG_FILE" ]] || [[ ! -f "$MARS_CONFIG_FILE" ]]; then
+        return 1
+    fi
+
+    yaml_parse "$MARS_CONFIG_FILE"
+}
+
+# Save configuration
+# Usage: config_save
+config_save() {
+    if [[ -z "$MARS_CONFIG_FILE" ]]; then
+        return 1
+    fi
+
+    yaml_write "$MARS_CONFIG_FILE"
+}
+
+# Get repos (optionally filtered by tag)
+# Usage: repos=$(config_get_repos [tag])
+config_get_repos() {
+    local tag="${1:-}"
+    yaml_get_repos "$tag"
+}
+
+# Get repo count
+# Usage: count=$(config_repo_count [tag])
+config_repo_count() {
+    local tag="${1:-}"
+    local count=0
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    while IFS= read -r repo; do
+        [[ -n "$repo" ]] && ((count++))
+    done <<< "$repos"
+
+    printf '%d' "$count"
+}
+
+# Check if repo directory exists
+# Usage: if config_repo_exists "repo_index"; then ...
+config_repo_exists() {
+    local idx="$1"
+    local path
+    path=$(yaml_get_path "$idx")
+    [[ -d "$MARS_REPOS_DIR/$path" ]]
+}
+
+# Get full path to repo
+# Usage: full_path=$(config_repo_full_path "repo_index")
+config_repo_full_path() {
+    local idx="$1"
+    local path
+    path=$(yaml_get_path "$idx")
+    printf '%s/%s' "$MARS_REPOS_DIR" "$path"
+}
+
+# Require workspace context
+# Usage: config_require_workspace || return 1
+# Prints error and returns 1 if not in workspace
+config_require_workspace() {
+    if ! config_find_root; then
+        printf 'Error: Not in a Mars workspace. Run "mars init" first.\n' >&2
+        return 1
+    fi
+    config_load
+}
+
+# Check if path is inside workspace
+# Usage: if config_is_in_workspace "/some/path"; then ...
+config_is_in_workspace() {
+    local path="$1"
+    [[ "$path" == "$MARS_WORKSPACE_ROOT"* ]]
+}
+
+# Get workspace name
+config_workspace_name() {
+    printf '%s' "$YAML_WORKSPACE_NAME"
+}
+
+# Get default branch
+config_default_branch() {
+    printf '%s' "$YAML_DEFAULTS_BRANCH"
+}
+
+# === lib/git.sh ===
+# Mars CLI - Git Operations
+# Wrapper functions for git commands with consistent error handling
+
+# Result pattern: functions return 0 on success, non-zero on failure
+# Output is captured in global variables to avoid subshell issues
+
+GIT_OUTPUT=""
+GIT_ERROR=""
+
+# Clone a repository
+# Usage: git_clone "url" "target_dir"
+# Returns: 0 on success, 1 on failure
+git_clone() {
+    local url="$1"
+    local target="$2"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ -d "$target" ]]; then
+        GIT_ERROR="Directory already exists: $target"
+        return 1
+    fi
+
+    if GIT_OUTPUT=$(git clone --progress "$url" "$target" 2>&1); then
+        return 0
+    else
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+}
+
+# Get repository status
+# Usage: git_status "repo_dir"
+# Sets: GIT_OUTPUT with status info
+# Returns: 0 on success
+git_status() {
+    local repo_dir="$1"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" status --porcelain 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Check if repo has uncommitted changes
+# Usage: if git_is_dirty "repo_dir"; then ...
+git_is_dirty() {
+    local repo_dir="$1"
+
+    git_status "$repo_dir" || return 1
+    [[ -n "$GIT_OUTPUT" ]]
+}
+
+# Get current branch name
+# Usage: branch=$(git_current_branch "repo_dir")
+git_current_branch() {
+    local repo_dir="$1"
+
+    git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null
+}
+
+# Create a new branch
+# Usage: git_branch "repo_dir" "branch_name"
+# Returns: 0 on success
+git_branch() {
+    local repo_dir="$1"
+    local branch_name="$2"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    # Check if branch already exists
+    if git -C "$repo_dir" rev-parse --verify "$branch_name" >/dev/null 2>&1; then
+        GIT_ERROR="Branch already exists: $branch_name"
+        return 1
+    fi
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" checkout -b "$branch_name" 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Checkout existing branch
+# Usage: git_checkout "repo_dir" "branch_name"
+# Returns: 0 on success
+git_checkout() {
+    local repo_dir="$1"
+    local branch_name="$2"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" checkout "$branch_name" 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Pull latest changes
+# Usage: git_pull "repo_dir" [--rebase]
+# Returns: 0 on success
+git_pull() {
+    local repo_dir="$1"
+    local rebase="${2:-}"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    local args=()
+    [[ "$rebase" == "--rebase" ]] && args+=("--rebase")
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" pull "${args[@]}" 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Fetch from remote
+# Usage: git_fetch "repo_dir"
+git_fetch() {
+    local repo_dir="$1"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" fetch 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Get ahead/behind counts relative to upstream
+# Usage: git_ahead_behind "repo_dir"
+# Sets: GIT_AHEAD, GIT_BEHIND
+GIT_AHEAD=0
+GIT_BEHIND=0
+
+git_ahead_behind() {
+    local repo_dir="$1"
+
+    GIT_AHEAD=0
+    GIT_BEHIND=0
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        return 1
+    fi
+
+    local upstream
+    upstream=$(git -C "$repo_dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) || return 0
+
+    local counts
+    counts=$(git -C "$repo_dir" rev-list --left-right --count "$upstream...HEAD" 2>/dev/null) || return 0
+
+    GIT_BEHIND=$(echo "$counts" | cut -f1)
+    GIT_AHEAD=$(echo "$counts" | cut -f2)
+
+    return 0
+}
+
+# Get remote URL
+# Usage: url=$(git_remote_url "repo_dir")
+git_remote_url() {
+    local repo_dir="$1"
+
+    git -C "$repo_dir" remote get-url origin 2>/dev/null
+}
+
+# Check if branch exists (local or remote)
+# Usage: if git_branch_exists "repo_dir" "branch_name"; then ...
+git_branch_exists() {
+    local repo_dir="$1"
+    local branch_name="$2"
+
+    git -C "$repo_dir" rev-parse --verify "$branch_name" >/dev/null 2>&1 ||
+    git -C "$repo_dir" rev-parse --verify "origin/$branch_name" >/dev/null 2>&1
+}
+
+# Stash changes
+# Usage: git_stash "repo_dir"
+git_stash() {
+    local repo_dir="$1"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" stash 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Pop stash
+# Usage: git_stash_pop "repo_dir"
+git_stash_pop() {
+    local repo_dir="$1"
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" stash pop 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# Get short commit hash
+# Usage: hash=$(git_short_hash "repo_dir")
+git_short_hash() {
+    local repo_dir="$1"
+
+    git -C "$repo_dir" rev-parse --short HEAD 2>/dev/null
+}
+
+# Run arbitrary git command
+# Usage: git_exec "repo_dir" "command" "args..."
+git_exec() {
+    local repo_dir="$1"
+    shift
+    local cmd=("$@")
+
+    GIT_OUTPUT=""
+    GIT_ERROR=""
+
+    if [[ ! -d "$repo_dir/.git" ]]; then
+        GIT_ERROR="Not a git repository: $repo_dir"
+        return 1
+    fi
+
+    if ! GIT_OUTPUT=$(git -C "$repo_dir" "${cmd[@]}" 2>&1); then
+        GIT_ERROR="$GIT_OUTPUT"
+        return 1
+    fi
+
+    return 0
+}
+
+# === lib/commands/init.sh ===
+# Mars CLI - init command
+# Interactive workspace initialization
+
+cmd_init() {
+    local workspace_name=""
+    local create_claude=0
+
+    # Check if already initialized
+    if [[ -f "mars.yaml" ]]; then
+        ui_step_error "Workspace already initialized in this directory"
+        return 1
+    fi
+
+    ui_intro "Mars - Multi-Repo Workspace"
+
+    # Get workspace name
+    ui_step "Workspace name?"
+    printf '%s  ' "$(ui_bar)"
+    read -r workspace_name
+
+    if [[ -z "$workspace_name" ]]; then
+        ui_outro_cancel "Cancelled - workspace name is required"
+        return 1
+    fi
+
+    ui_step_done "Workspace:" "$workspace_name"
+    ui_bar_line
+
+    # Ask about claude config
+    if ui_confirm "Create claude.md and .claude/ for shared config?"; then
+        create_claude=1
+        ui_step_done "Claude config: enabled"
+    else
+        ui_step_done "Claude config: skipped"
+    fi
+
+    ui_bar_line
+
+    # Initialize workspace
+    if ! config_init "$workspace_name"; then
+        ui_step_error "Failed to initialize workspace"
+        return 1
+    fi
+
+    # Create claude files if requested
+    if [[ $create_claude -eq 1 ]]; then
+        mkdir -p ".claude"
+        cat > "claude.md" << 'EOF'
+# Workspace Configuration
+
+This is a shared Claude configuration for the workspace.
+Add your project-specific instructions here.
+EOF
+        ui_step_done "Created claude.md"
+        ui_step_done "Created .claude/"
+    fi
+
+    ui_step_done "Created mars.yaml"
+    ui_step_done "Created .gitignore"
+    ui_step_done "Created repos/ directory"
+
+    ui_outro "Workspace initialized! Run 'mars add <url>' to add repositories."
+
+    return 0
+}
+
+# === lib/commands/clone.sh ===
+# Mars CLI - clone command
+# Clone configured repositories with parallel execution
+
+# Maximum concurrent clone jobs
+CLONE_PARALLEL_LIMIT=4
+
+cmd_clone() {
+    local tag=""
+    local force=0
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --force|-f)
+                force=1
+                shift
+                ;;
+            *)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Clone Repositories"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        if [[ -n "$tag" ]]; then
+            ui_step_error "No repositories found with tag: $tag"
+        else
+            ui_step_error "No repositories configured. Run 'mars add <url>' first."
+        fi
+        ui_outro_cancel "Nothing to clone"
+        return 1
+    fi
+
+    # Count repos
+    local total=0
+    local to_clone=()
+    local already_cloned=()
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+        ((total++))
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ -d "$full_path" ]] && [[ $force -eq 0 ]]; then
+            already_cloned+=("$repo")
+        else
+            to_clone+=("$repo")
+        fi
+    done <<< "$repos"
+
+    # Report already cloned
+    for repo in "${already_cloned[@]}"; do
+        local path
+        path=$(yaml_get_path "$repo")
+        ui_step_done "Already cloned:" "$path"
+    done
+
+    if [[ ${#to_clone[@]} -eq 0 ]]; then
+        ui_outro "All repositories already cloned"
+        return 0
+    fi
+
+    ui_bar_line
+    ui_info "Cloning ${#to_clone[@]} of $total repositories..."
+    ui_bar_line
+
+    # Clone with parallelism
+    local pids=()
+    local repo_for_pid=()
+    local success_count=0
+    local fail_count=0
+    local failed_repos=()
+
+    for repo in "${to_clone[@]}"; do
+        local url
+        url=$(yaml_get_url "$repo")
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        # Remove existing directory if force
+        if [[ -d "$full_path" ]] && [[ $force -eq 1 ]]; then
+            rm -rf "$full_path"
+        fi
+
+        # Wait if at parallel limit
+        while [[ ${#pids[@]} -ge $CLONE_PARALLEL_LIMIT ]]; do
+            _clone_wait_one
+        done
+
+        # Start clone in background
+        (
+            if git clone --quiet "$url" "$full_path" 2>/dev/null; then
+                exit 0
+            else
+                exit 1
+            fi
+        ) &
+
+        pids+=($!)
+        repo_for_pid+=("$repo")
+    done
+
+    # Wait for remaining jobs
+    while [[ ${#pids[@]} -gt 0 ]]; do
+        _clone_wait_one
+    done
+
+    # Summary
+    ui_bar_line
+
+    if [[ $fail_count -eq 0 ]]; then
+        ui_outro "Cloned $success_count repositories successfully"
+    else
+        for repo in "${failed_repos[@]}"; do
+            local path
+            path=$(yaml_get_path "$repo")
+            ui_step_error "Failed: $path"
+        done
+        ui_outro_cancel "Cloned $success_count, failed $fail_count"
+        return 1
+    fi
+
+    return 0
+}
+
+# Helper to wait for one clone job
+_clone_wait_one() {
+    if [[ ${#pids[@]} -eq 0 ]]; then
+        return
+    fi
+
+    # Wait for any process to complete
+    local pid
+    for i in "${!pids[@]}"; do
+        pid="${pids[$i]}"
+        if ! kill -0 "$pid" 2>/dev/null; then
+            # Process finished
+            wait "$pid"
+            local exit_code=$?
+            local repo="${repo_for_pid[$i]}"
+            local path
+            path=$(yaml_get_path "$repo")
+
+            if [[ $exit_code -eq 0 ]]; then
+                ui_step_done "Cloned:" "$path"
+                ((success_count++))
+            else
+                ui_step_error "Failed to clone: $path"
+                ((fail_count++))
+                failed_repos+=("$repo")
+            fi
+
+            # Remove from arrays
+            unset 'pids[i]'
+            unset 'repo_for_pid[i]'
+            pids=("${pids[@]}")
+            repo_for_pid=("${repo_for_pid[@]}")
+            return
+        fi
+    done
+
+    # If all still running, sleep briefly
+    sleep 0.1
+}
+
+# === lib/commands/status.sh ===
+# Mars CLI - status command
+# Show git status across all repositories
+
+cmd_status() {
+    local tag=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            *)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Repository Status"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        ui_step_error "No repositories configured"
+        ui_outro_cancel "Nothing to show"
+        return 1
+    fi
+
+    # Table header
+    ui_table_header "Repository" "Branch" "Status" "Sync"
+
+    local not_cloned=0
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ ! -d "$full_path" ]]; then
+            ui_table_row "$path" "$(ui_dim "not cloned")" "-" "-"
+            ((not_cloned++))
+            continue
+        fi
+
+        # Get branch
+        local branch
+        branch=$(git_current_branch "$full_path")
+
+        # Get dirty status
+        local status_text
+        if git_is_dirty "$full_path"; then
+            status_text="$(ui_yellow "dirty")"
+        else
+            status_text="$(ui_green "clean")"
+        fi
+
+        # Get ahead/behind
+        git_ahead_behind "$full_path"
+        local sync_text=""
+
+        if [[ $GIT_AHEAD -gt 0 ]] && [[ $GIT_BEHIND -gt 0 ]]; then
+            sync_text="$(ui_yellow "↑$GIT_AHEAD ↓$GIT_BEHIND")"
+        elif [[ $GIT_AHEAD -gt 0 ]]; then
+            sync_text="$(ui_cyan "↑$GIT_AHEAD")"
+        elif [[ $GIT_BEHIND -gt 0 ]]; then
+            sync_text="$(ui_yellow "↓$GIT_BEHIND")"
+        else
+            sync_text="$(ui_green "synced")"
+        fi
+
+        ui_table_row "$path" "$branch" "$status_text" "$sync_text"
+    done <<< "$repos"
+
+    ui_bar_line
+
+    if [[ $not_cloned -gt 0 ]]; then
+        ui_info "$(ui_dim "$not_cloned repository(ies) not cloned. Run 'mars clone' to clone them.")"
+    fi
+
+    ui_outro "Status complete"
+
+    return 0
+}
+
+# === lib/commands/branch.sh ===
+# Mars CLI - branch command
+# Create a new branch across repositories
+
+cmd_branch() {
+    local branch_name=""
+    local tag=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            -*)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$branch_name" ]]; then
+                    branch_name="$1"
+                else
+                    ui_step_error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$branch_name" ]]; then
+        ui_step_error "Usage: mars branch <branch-name> [--tag TAG]"
+        return 1
+    fi
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Create Branch: $branch_name"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        ui_step_error "No repositories configured"
+        ui_outro_cancel "Nothing to do"
+        return 1
+    fi
+
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ ! -d "$full_path" ]]; then
+            ui_step_done "Skipped (not cloned):" "$path"
+            ((skip_count++))
+            continue
+        fi
+
+        # Check if branch already exists
+        if git_branch_exists "$full_path" "$branch_name"; then
+            # Try to checkout instead
+            if git_checkout "$full_path" "$branch_name"; then
+                ui_step_done "Checked out existing:" "$path → $branch_name"
+                ((success_count++))
+            else
+                ui_step_error "Failed to checkout existing branch: $path"
+                ((fail_count++))
+            fi
+            continue
+        fi
+
+        # Create new branch
+        if git_branch "$full_path" "$branch_name"; then
+            ui_step_done "Created:" "$path → $branch_name"
+            ((success_count++))
+        else
+            ui_step_error "Failed: $path - $GIT_ERROR"
+            ((fail_count++))
+        fi
+    done <<< "$repos"
+
+    ui_bar_line
+
+    if [[ $fail_count -eq 0 ]]; then
+        local msg="Branch '$branch_name' created on $success_count repo(s)"
+        [[ $skip_count -gt 0 ]] && msg+=", $skip_count skipped"
+        ui_outro "$msg"
+    else
+        ui_outro_cancel "$success_count succeeded, $fail_count failed"
+        return 1
+    fi
+
+    return 0
+}
+
+# === lib/commands/checkout.sh ===
+# Mars CLI - checkout command
+# Checkout a branch across repositories
+
+cmd_checkout() {
+    local branch_name=""
+    local tag=""
+    local force=0
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --force|-f)
+                force=1
+                shift
+                ;;
+            -*)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$branch_name" ]]; then
+                    branch_name="$1"
+                else
+                    ui_step_error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$branch_name" ]]; then
+        ui_step_error "Usage: mars checkout <branch-name> [--tag TAG] [--force]"
+        return 1
+    fi
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Checkout Branch: $branch_name"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        ui_step_error "No repositories configured"
+        ui_outro_cancel "Nothing to do"
+        return 1
+    fi
+
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+    local dirty_repos=()
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ ! -d "$full_path" ]]; then
+            ui_step_done "Skipped (not cloned):" "$path"
+            ((skip_count++))
+            continue
+        fi
+
+        # Check for uncommitted changes
+        if git_is_dirty "$full_path" && [[ $force -eq 0 ]]; then
+            ui_step_error "Uncommitted changes: $path"
+            dirty_repos+=("$path")
+            ((fail_count++))
+            continue
+        fi
+
+        # Check if branch exists
+        if ! git_branch_exists "$full_path" "$branch_name"; then
+            ui_step_error "Branch not found: $path"
+            ((fail_count++))
+            continue
+        fi
+
+        # Checkout
+        if git_checkout "$full_path" "$branch_name"; then
+            ui_step_done "Checked out:" "$path → $branch_name"
+            ((success_count++))
+        else
+            ui_step_error "Failed: $path - $GIT_ERROR"
+            ((fail_count++))
+        fi
+    done <<< "$repos"
+
+    ui_bar_line
+
+    if [[ ${#dirty_repos[@]} -gt 0 ]]; then
+        ui_info "$(ui_yellow "Hint: Use --force to checkout despite uncommitted changes")"
+        ui_bar_line
+    fi
+
+    if [[ $fail_count -eq 0 ]]; then
+        local msg="Checked out '$branch_name' on $success_count repo(s)"
+        [[ $skip_count -gt 0 ]] && msg+=", $skip_count skipped"
+        ui_outro "$msg"
+    else
+        ui_outro_cancel "$success_count succeeded, $fail_count failed"
+        return 1
+    fi
+
+    return 0
+}
+
+# === lib/commands/sync.sh ===
+# Mars CLI - sync command
+# Pull latest changes across repositories
+
+cmd_sync() {
+    local tag=""
+    local rebase=0
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --rebase|-r)
+                rebase=1
+                shift
+                ;;
+            *)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Sync Repositories"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        ui_step_error "No repositories configured"
+        ui_outro_cancel "Nothing to sync"
+        return 1
+    fi
+
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+    local conflict_repos=()
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ ! -d "$full_path" ]]; then
+            ui_step_done "Skipped (not cloned):" "$path"
+            ((skip_count++))
+            continue
+        fi
+
+        # Fetch first
+        git_fetch "$full_path"
+
+        # Pull
+        local pull_args=""
+        [[ $rebase -eq 1 ]] && pull_args="--rebase"
+
+        if git_pull "$full_path" $pull_args; then
+            # Check what happened
+            if [[ "$GIT_OUTPUT" == *"Already up to date"* ]]; then
+                ui_step_done "Up to date:" "$path"
+            else
+                ui_step_done "Updated:" "$path"
+            fi
+            ((success_count++))
+        else
+            # Check for conflicts
+            if [[ "$GIT_ERROR" == *"conflict"* ]] || [[ "$GIT_ERROR" == *"CONFLICT"* ]]; then
+                ui_step_error "Conflict: $path"
+                conflict_repos+=("$path")
+            else
+                ui_step_error "Failed: $path"
+            fi
+            ((fail_count++))
+        fi
+    done <<< "$repos"
+
+    ui_bar_line
+
+    if [[ ${#conflict_repos[@]} -gt 0 ]]; then
+        ui_info "$(ui_yellow "Repositories with conflicts:")"
+        for r in "${conflict_repos[@]}"; do
+            ui_info "  - $r"
+        done
+        ui_bar_line
+    fi
+
+    if [[ $fail_count -eq 0 ]]; then
+        local msg="Synced $success_count repo(s)"
+        [[ $skip_count -gt 0 ]] && msg+=", $skip_count skipped"
+        ui_outro "$msg"
+    else
+        ui_outro_cancel "$success_count synced, $fail_count failed"
+        return 1
+    fi
+
+    return 0
+}
+
+# === lib/commands/exec.sh ===
+# Mars CLI - exec command
+# Run command in each repository
+
+cmd_exec() {
+    local command=""
+    local tag=""
+    local quiet=0
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            --quiet|-q)
+                quiet=1
+                shift
+                ;;
+            --)
+                shift
+                command="$*"
+                break
+                ;;
+            -*)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                # Everything else is the command
+                command="$*"
+                break
+                ;;
+        esac
+    done
+
+    if [[ -z "$command" ]]; then
+        ui_step_error "Usage: mars exec \"<command>\" [--tag TAG]"
+        return 1
+    fi
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Execute: $command"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        ui_step_error "No repositories configured"
+        ui_outro_cancel "Nothing to do"
+        return 1
+    fi
+
+    local success_count=0
+    local skip_count=0
+    local fail_count=0
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        if [[ ! -d "$full_path" ]]; then
+            ui_step_done "Skipped (not cloned):" "$path"
+            ((skip_count++))
+            continue
+        fi
+
+        ui_step "Running in: $path"
+        ui_bar_line
+
+        # Execute command in repo directory
+        local output
+        local exit_code
+
+        if output=$(cd "$full_path" && eval "$command" 2>&1); then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+
+        # Show output if not quiet
+        if [[ $quiet -eq 0 ]] && [[ -n "$output" ]]; then
+            while IFS= read -r line; do
+                printf '%s  %s\n' "$(ui_bar)" "$(ui_dim "$line")"
+            done <<< "$output"
+        fi
+
+        if [[ $exit_code -eq 0 ]]; then
+            ui_step_done "Success:" "$path"
+            ((success_count++))
+        else
+            ui_step_error "Failed (exit $exit_code): $path"
+            ((fail_count++))
+        fi
+
+        ui_bar_line
+    done <<< "$repos"
+
+    if [[ $fail_count -eq 0 ]]; then
+        local msg="Executed on $success_count repo(s)"
+        [[ $skip_count -gt 0 ]] && msg+=", $skip_count skipped"
+        ui_outro "$msg"
+    else
+        ui_outro_cancel "$success_count succeeded, $fail_count failed"
+        return 1
+    fi
+
+    return 0
+}
+
+# === lib/commands/add.sh ===
+# Mars CLI - add command
+# Add a repository to the workspace configuration
+
+cmd_add() {
+    local url=""
+    local path=""
+    local tags=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tags)
+                tags="$2"
+                shift 2
+                ;;
+            --path)
+                path="$2"
+                shift 2
+                ;;
+            -*)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$url" ]]; then
+                    url="$1"
+                else
+                    ui_step_error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$url" ]]; then
+        ui_step_error "Usage: mars add <url> [--tags tag1,tag2] [--path custom-path]"
+        return 1
+    fi
+
+    config_require_workspace || return 1
+
+    # Derive path from URL if not provided
+    if [[ -z "$path" ]]; then
+        path=$(yaml_path_from_url "$url")
+    fi
+
+    # Check if repo already exists
+    local i
+    for ((i = 0; i < YAML_REPO_COUNT; i++)); do
+        local existing_url
+        existing_url=$(yaml_get_url "$i")
+        if [[ "$existing_url" == "$url" ]]; then
+            ui_step_error "Repository already configured: $url"
+            return 1
+        fi
+
+        local existing_path
+        existing_path=$(yaml_get_path "$i")
+        if [[ "$existing_path" == "$path" ]]; then
+            ui_step_error "Path already in use: $path"
+            return 1
+        fi
+    done
+
+    ui_intro "Mars - Add Repository"
+
+    # Add to config
+    yaml_add_repo "$url" "$path" "$tags"
+
+    # Save config
+    config_save
+
+    ui_step_done "Added repository:" "$path"
+
+    if [[ -n "$tags" ]]; then
+        ui_info "Tags: $tags"
+    fi
+
+    ui_bar_line
+    ui_info "$(ui_dim "Run 'mars clone' to clone the repository")"
+
+    ui_outro "Repository added to workspace"
+
+    return 0
+}
+
+# === lib/commands/list.sh ===
+# Mars CLI - list command
+# List configured repositories
+
+cmd_list() {
+    local tag=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                tag="$2"
+                shift 2
+                ;;
+            *)
+                ui_step_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    config_require_workspace || return 1
+
+    ui_intro "Mars - Configured Repositories"
+
+    local repos
+    repos=$(config_get_repos "$tag")
+
+    if [[ -z "$repos" ]]; then
+        if [[ -n "$tag" ]]; then
+            ui_info "No repositories found with tag: $tag"
+        else
+            ui_info "No repositories configured"
+            ui_bar_line
+            ui_info "$(ui_dim "Run 'mars add <url>' to add a repository")"
+        fi
+        ui_outro "List complete"
+        return 0
+    fi
+
+    # Table header
+    ui_table_header "Path" "Tags" "Cloned"
+
+    local total=0
+    local cloned=0
+
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+        ((total++))
+
+        local path
+        path=$(yaml_get_path "$repo")
+        local tags
+        tags=$(yaml_get_tags "$repo")
+        local full_path="$MARS_REPOS_DIR/$path"
+
+        local cloned_text
+        if [[ -d "$full_path" ]]; then
+            cloned_text="$(ui_green "yes")"
+            ((cloned++))
+        else
+            cloned_text="$(ui_dim "no")"
+        fi
+
+        local tags_text
+        if [[ -n "$tags" ]]; then
+            tags_text="$tags"
+        else
+            tags_text="$(ui_dim "-")"
+        fi
+
+        ui_table_row "$path" "$tags_text" "$cloned_text"
+    done <<< "$repos"
+
+    ui_bar_line
+    ui_info "Total: $total repositories, $cloned cloned"
+
+    ui_outro "List complete"
+
+    return 0
+}
+
+# === Main ===
+# --- Help ---
+show_help() {
+    cat << EOF
+Mars - Multi-Repo Workspace Manager v$MARS_VERSION
+
+Usage: mars <command> [options]
+
+Commands:
+  init                    Initialize a new workspace
+  clone [--tag TAG]       Clone configured repositories
+  status [--tag TAG]      Show status of all repositories
+  branch NAME [--tag TAG] Create a branch on repositories
+  checkout BRANCH [--tag TAG] Checkout a branch on repositories
+  sync [--tag TAG]        Pull latest changes on repositories
+  exec "CMD" [--tag TAG]  Run a command in each repository
+  add URL [--tags TAGS]   Add a repository to the workspace
+  list [--tag TAG]        List configured repositories
+
+Options:
+  --tag TAG       Filter repositories by tag
+  --tags TAGS     Comma-separated list of tags (for add)
+  --force, -f     Force operation (clone, checkout)
+  --rebase, -r    Use rebase when syncing
+  --quiet, -q     Suppress command output (exec)
+  --help, -h      Show this help
+  --version, -v   Show version
+
+Examples:
+  mars init
+  mars add git@github.com:org/frontend.git --tags frontend,web
+  mars add git@github.com:org/backend.git --tags backend,api
+  mars clone
+  mars status
+  mars branch feature-auth
+  mars checkout main
+  mars sync --rebase
+  mars exec "npm install" --tag frontend
+
+Documentation: https://github.com/<username>/mars
+EOF
+}
+
+show_version() {
+    printf 'Mars v%s\n' "$MARS_VERSION"
+}
+
+# --- Main ---
+main() {
+    local command="${1:-}"
+
+    # Handle no arguments
+    if [[ -z "$command" ]]; then
+        show_help
+        return 0
+    fi
+
+    # Shift off the command
+    shift || true
+
+    case "$command" in
+        init)
+            cmd_init "$@"
+            ;;
+        clone)
+            cmd_clone "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        branch)
+            cmd_branch "$@"
+            ;;
+        checkout)
+            cmd_checkout "$@"
+            ;;
+        sync)
+            cmd_sync "$@"
+            ;;
+        exec)
+            cmd_exec "$@"
+            ;;
+        add)
+            cmd_add "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        --help|-h|help)
+            show_help
+            ;;
+        --version|-v|version)
+            show_version
+            ;;
+        *)
+            printf 'Unknown command: %s\n\n' "$command" >&2
+            show_help >&2
+            return 1
+            ;;
+    esac
+}
+
+main "$@"
