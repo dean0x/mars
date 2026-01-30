@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mars CLI - Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/<username>/mars/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
 
 set -euo pipefail
 
@@ -8,7 +8,7 @@ set -euo pipefail
 MARS_VERSION="0.1.0"
 MARS_INSTALL_DIR="${MARS_INSTALL_DIR:-$HOME/.mars}"
 MARS_BIN_DIR="$MARS_INSTALL_DIR/bin"
-MARS_REPO="<username>/mars"
+MARS_REPO="dean0x/mars"
 MARS_DOWNLOAD_URL="https://raw.githubusercontent.com/$MARS_REPO/main/dist/mars"
 
 # Colors (if terminal supports it)
