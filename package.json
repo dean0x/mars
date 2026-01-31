@@ -1,0 +1,31 @@
+{
+  "name": "@dean0x/mars",
+  "version": "0.1.0",
+  "description": "Multi-repo workspace manager for Git repositories",
+  "bin": {
+    "mars": "./dist/mars"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dean0x/mars.git"
+  },
+  "homepage": "https://github.com/dean0x/mars",
+  "bugs": {
+    "url": "https://github.com/dean0x/mars/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "monorepo",
+    "workspace",
+    "cli",
+    "multi-repo",
+    "repository-manager"
+  ],
+  "files": [
+    "dist/mars"
+  ],
+  "engines": {
+    "node": ">=14"
+  }
+}

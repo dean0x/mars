@@ -14,7 +14,7 @@ mkdir -p "$SCRIPT_DIR/dist"
 cat > "$OUTPUT_FILE" << 'HEADER'
 #!/usr/bin/env bash
 # Mars CLI - Multi-Repo Workspace Manager
-# https://github.com/<username>/mars
+# https://github.com/dean0x/mars
 # This is a bundled distribution - do not edit
 
 set -euo pipefail

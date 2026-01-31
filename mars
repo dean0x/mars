@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mars CLI - Multi-Repo Workspace Manager
-# https://github.com/<username>/mars
+# https://github.com/dean0x/mars
 
 set -euo pipefail
 
@@ -66,7 +66,7 @@ Examples:
   mars sync --rebase
   mars exec "npm install" --tag frontend
 
-Documentation: https://github.com/<username>/mars
+Documentation: https://github.com/dean0x/mars
 EOF
 }
 

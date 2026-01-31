@@ -12,11 +12,31 @@ Multi-repo workspace manager for git repositories with shared configuration.
 
 ## Installation
 
+### npm (recommended)
+
+```bash
+npm install -g @dean0x/mars
+```
+
+Or run without installing:
+
+```bash
+npx @dean0x/mars --help
+```
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew install dean0x/tap/mars
+```
+
+### Shell Script
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
 ```
 
-Or manually:
+### Manual
 
 ```bash
 git clone https://github.com/dean0x/mars.git
