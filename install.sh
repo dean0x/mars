@@ -121,7 +121,7 @@ add_to_path() {
 # Main installation
 main() {
     printf "\n"
-    printf "${CYAN}┌${RESET}  Mars CLI Installer v%s\n" "$MARS_VERSION"
+    printf "${CYAN}┌${RESET}  Mars - Multi Agentic Repo Workspace Manager Installer v%s\n" "$MARS_VERSION"
     printf "${DIM}│${RESET}\n"
 
     # Check requirements

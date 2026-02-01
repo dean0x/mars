@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mars CLI - Multi-Repo Workspace Manager
+# Mars CLI - Multi Agentic Repo Workspace Manager
 # https://github.com/dean0x/mars
 
 set -euo pipefail
@@ -31,7 +31,7 @@ fi
 # --- Help ---
 show_help() {
     cat << EOF
-Mars - Multi-Repo Workspace Manager v$MARS_VERSION
+Mars - Multi Agentic Repo Workspace Manager v$MARS_VERSION
 
 Usage: mars <command> [options]
 

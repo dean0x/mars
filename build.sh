@@ -13,7 +13,7 @@ mkdir -p "$SCRIPT_DIR/dist"
 # Start with header
 cat > "$OUTPUT_FILE" << 'HEADER'
 #!/usr/bin/env bash
-# Mars CLI - Multi-Repo Workspace Manager
+# Mars CLI - Multi Agentic Repo Workspace Manager
 # https://github.com/dean0x/mars
 # This is a bundled distribution - do not edit
 
