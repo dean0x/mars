@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mars CLI - Multi-Repo Workspace Manager
+# Mars CLI - Multi Agentic Repo Workspace Manager
 # https://github.com/dean0x/mars
 # This is a bundled distribution - do not edit
 
@@ -1085,7 +1085,7 @@ cmd_init() {
         return 1
     fi
 
-    ui_intro "Mars - Multi-Repo Workspace"
+    ui_intro "Mars - Multi Agentic Repo Workspace"
 
     # Get workspace name
     ui_step "Workspace name?"
@@ -2026,7 +2026,7 @@ cmd_list() {
 # --- Help ---
 show_help() {
     cat << EOF
-Mars - Multi-Repo Workspace Manager v$MARS_VERSION
+Mars - Multi Agentic Repo Workspace Manager v$MARS_VERSION
 
 Usage: mars <command> [options]
 

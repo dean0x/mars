@@ -12,7 +12,7 @@ cmd_init() {
         return 1
     fi
 
-    ui_intro "Mars - Multi-Repo Workspace"
+    ui_intro "Mars - Multi Agentic Repo Workspace"
 
     # Get workspace name
     ui_step "Workspace name?"
