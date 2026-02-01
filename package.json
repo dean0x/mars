@@ -1,7 +1,7 @@
 {
   "name": "@dean0x/mars",
   "version": "0.1.0",
-  "description": "Multi-repo workspace manager for Git repositories",
+  "description": "Multi Agentic Repo workspace manager for Git repositories",
   "bin": {
     "mars": "./dist/mars"
   },
@@ -16,11 +16,14 @@
   "license": "MIT",
   "keywords": [
     "git",
-    "monorepo",
     "workspace",
     "cli",
     "multi-repo",
-    "repository-manager"
+    "polyrepo",
+    "repository-manager",
+    "claude",
+    "claude-code",
+    "anthropic"
   ],
   "files": [
     "dist/mars"

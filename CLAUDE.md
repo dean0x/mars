@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Mars is a Bash-based multi-repository workspace manager for managing multiple Git repositories as a unified workspace. Written for bash 3.2+ (macOS compatible) with no external dependencies beyond git.
+Mars is a Bash-based Multi Agentic Repo workspace manager for managing multiple Git repositories as a unified workspace. Written for bash 3.2+ (macOS compatible) with no external dependencies beyond git.
 
 ## Commands
 

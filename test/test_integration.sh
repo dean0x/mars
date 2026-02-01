@@ -53,7 +53,7 @@ test_help() {
 
     local output
     output=$("$MARS_CMD" --help 2>&1) || true
-    if echo "$output" | grep -q "Multi-Repo Workspace Manager"; then
+    if echo "$output" | grep -q "Multi Agentic Repo Workspace Manager"; then
         test_pass
     else
         test_fail "help output missing expected text"

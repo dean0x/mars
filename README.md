@@ -1,6 +1,6 @@
 # Mars CLI
 
-Multi-repo workspace manager for git repositories with shared configuration.
+Multi Agentic Repo workspace manager for git repositories with shared Claude configuration.
 
 ## Features
 
