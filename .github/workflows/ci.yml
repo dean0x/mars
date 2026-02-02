@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create test temp directory
+        run: mkdir -p /tmp/claude
+
+      - name: Run YAML parser tests
+        run: bash test/test_yaml.sh
+
+      - name: Run config tests
+        run: bash test/test_config.sh
+
+      - name: Run integration tests
+        run: bash test/test_integration.sh

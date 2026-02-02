@@ -163,6 +163,28 @@ bash test/test_integration.sh
 
 **Important:** `dist/mars` is committed for easy installation. Always run `./build.sh` before committing changes to source files.
 
+## Releasing
+
+Releases are automated via GitHub Actions. To create a release:
+
+1. Update version in `package.json`
+2. Commit the change
+3. Create and push a tag: `git tag v0.1.1 && git push origin v0.1.1`
+
+The CI will automatically:
+- Run tests
+- Verify the tag version matches `package.json`
+- Create a GitHub Release with auto-generated notes
+- Publish to npm
+- Update the Homebrew formula
+
+### Required Secrets (for maintainers)
+
+| Secret | Repository | Purpose |
+|--------|------------|---------|
+| `NPM_TOKEN` | mars | npm publish access token |
+| `HOMEBREW_TAP_TOKEN` | mars | PAT with repo scope to trigger homebrew-tap workflow |
+
 ## License
 
 MIT

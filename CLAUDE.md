@@ -85,3 +85,17 @@ defaults:
 - Use `ui_step_error()`/`ui_step_done()` for user feedback
 - Tests use `/tmp/claude/` for temporary files
 - Parallel operations limited to 4 concurrent jobs (`CLONE_PARALLEL_LIMIT`)
+
+## Release Process
+
+Releases use semantic version tags with `v` prefix (e.g., `v0.1.1`).
+
+**Tag format**: `v<major>.<minor>.<patch>` - The `v` prefix is required for CI to trigger.
+
+**Process**:
+1. Update version in `package.json`
+2. Commit: `git commit -am "Bump version to 0.1.1"`
+3. Tag: `git tag v0.1.1`
+4. Push: `git push origin main --tags`
+
+CI automatically handles GitHub Release, npm publish, and Homebrew formula update.
