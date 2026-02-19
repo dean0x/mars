@@ -19,6 +19,9 @@ cat > "$OUTPUT_FILE" << 'HEADER'
 
 set -euo pipefail
 
+# Exit cleanly on SIGPIPE (e.g., mars clone | grep, mars status | head)
+trap 'exit 0' PIPE
+
 MARS_VERSION="0.1.1"
 
 HEADER
