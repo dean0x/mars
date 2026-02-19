@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # Mars CLI - Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
+# Override version: MARS_VERSION=0.1.1 curl -fsSL ... | bash
 
 set -euo pipefail
 
 # Configuration
-MARS_VERSION="0.1.0"
+MARS_VERSION="${MARS_VERSION:-latest}"
 MARS_INSTALL_DIR="${MARS_INSTALL_DIR:-$HOME/.mars}"
 MARS_BIN_DIR="$MARS_INSTALL_DIR/bin"
 MARS_REPO="dean0x/mars"
-MARS_DOWNLOAD_URL="https://raw.githubusercontent.com/$MARS_REPO/main/dist/mars"
 
 # Colors (if terminal supports it)
 if [[ -t 1 ]] && [[ "${TERM:-}" != "dumb" ]]; then
@@ -98,6 +98,15 @@ download() {
     fi
 }
 
+# Build download URL based on version
+get_download_url() {
+    if [[ "$MARS_VERSION" == "latest" ]]; then
+        echo "https://github.com/$MARS_REPO/releases/latest/download/mars"
+    else
+        echo "https://github.com/$MARS_REPO/releases/download/v$MARS_VERSION/mars"
+    fi
+}
+
 # Add to PATH in shell config
 add_to_path() {
     local rc_file="$1"
@@ -121,7 +130,7 @@ add_to_path() {
 # Main installation
 main() {
     printf "\n"
-    printf "${CYAN}┌${RESET}  Mars - Multi Agentic Repo Workspace Manager Installer v%s\n" "$MARS_VERSION"
+    printf "${CYAN}┌${RESET}  Mars - Multi Agentic Repo Workspace Manager Installer\n"
     printf "${DIM}│${RESET}\n"
 
     # Check requirements
@@ -135,16 +144,32 @@ main() {
     success "Created $MARS_BIN_DIR"
 
     # Download mars
-    info "Downloading Mars CLI..."
     local mars_path="$MARS_BIN_DIR/mars"
+    local release_url
+    release_url="$(get_download_url)"
 
-    if download "$MARS_DOWNLOAD_URL" "$mars_path"; then
+    if [[ "$MARS_VERSION" == "latest" ]]; then
+        info "Downloading Mars CLI (latest release)..."
+    else
+        info "Downloading Mars CLI v${MARS_VERSION}..."
+    fi
+
+    if download "$release_url" "$mars_path"; then
         chmod +x "$mars_path"
         success "Downloaded mars executable"
     else
-        error "Failed to download Mars CLI"
-        error "URL: $MARS_DOWNLOAD_URL"
-        exit 1
+        # Fallback to raw.githubusercontent.com
+        local fallback_url="https://raw.githubusercontent.com/$MARS_REPO/main/dist/mars"
+        warn "Release download failed, trying fallback..."
+        if download "$fallback_url" "$mars_path"; then
+            chmod +x "$mars_path"
+            warn "Downloaded from fallback (unversioned). Consider installing a tagged release."
+        else
+            error "Failed to download Mars CLI"
+            error "Tried: $release_url"
+            error "Fallback: $fallback_url"
+            exit 1
+        fi
     fi
 
     # Add to PATH
@@ -162,8 +187,9 @@ main() {
 
     # Verify installation
     printf "${DIM}│${RESET}\n"
-    if "$mars_path" --version &> /dev/null; then
-        success "Installation verified"
+    local installed_version
+    if installed_version=$("$mars_path" --version 2>/dev/null); then
+        success "Installed $installed_version"
     else
         warn "Installation may have issues - please check $mars_path"
     fi

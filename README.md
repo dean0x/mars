@@ -1,81 +1,44 @@
-# Mars CLI
+# Mars
 
-Multi Agentic Repo workspace manager for git repositories with shared Claude configuration.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm](https://img.shields.io/npm/v/@dean0x/mars)](https://www.npmjs.com/package/@dean0x/mars)
+[![CI](https://github.com/dean0x/mars/actions/workflows/ci.yml/badge.svg)](https://github.com/dean0x/mars/actions/workflows/ci.yml)
 
-## Features
+Manage multiple Git repositories as one workspace.
 
-- Manage multiple git repos as a unified workspace
-- Shared `claude.md` and `.claude/` config across repos
-- Tag-based repo filtering for targeted operations
-- Parallel cloning with rate limiting
-- Works with bash 3.2+ (macOS compatible)
+Tag-based filtering, parallel operations, shared Claude configuration.
 
-## Installation
+<p align="center">
+  <img src="demo.gif" alt="Mars CLI demo" width="800" />
+</p>
 
-### npm (recommended)
+## Why Mars?
+
+- **Polyrepo without the pain** — one CLI for status, branching, syncing across all repos
+- **Tag-based filtering** — target subsets of repos (`--tag frontend`, `--tag backend`)
+- **Shared Claude config** — `claude.md` and `.claude/` directory shared across repos
+- **Zero dependencies** — pure bash 3.2+, works on macOS out of the box
+
+## Quick Install
 
 ```bash
 npm install -g @dean0x/mars
 ```
 
-Or run without installing:
-
-```bash
-npx @dean0x/mars --help
-```
-
-### Homebrew (macOS/Linux)
-
-```bash
-brew install dean0x/tap/mars
-```
-
-### Shell Script
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
-```
-
-### Manual
-
-```bash
-git clone https://github.com/dean0x/mars.git
-cd mars
-./build.sh
-cp dist/mars ~/.local/bin/  # or anywhere in PATH
-```
+See [all installation methods](#installation) for Homebrew, curl, and manual options.
 
 ## Quick Start
 
 ```bash
-# Create a new workspace
 mkdir my-project && cd my-project
 mars init
 
-# Add repositories
-mars add git@github.com:org/frontend.git --tags frontend,web
-mars add git@github.com:org/backend.git --tags backend,api
-mars add git@github.com:org/shared.git --tags shared
+mars add https://github.com/dean0x/mars-example-frontend.git --tags frontend,web
+mars add https://github.com/dean0x/mars-example-backend.git --tags backend,api
+mars add https://github.com/dean0x/mars-example-shared.git --tags shared
 
-# Clone all repos
 mars clone
-
-# Check status
 mars status
-```
-
-## Workspace Structure
-
-```
-my-project/
-├── mars.yaml           # Workspace configuration
-├── claude.md           # Shared Claude config (optional)
-├── .claude/            # Shared Claude folder (optional)
-├── .gitignore          # Contains 'repos/'
-└── repos/              # Cloned repositories (gitignored)
-    ├── frontend/
-    ├── backend/
-    └── shared/
 ```
 
 ## Commands
@@ -128,62 +91,64 @@ defaults:
   branch: main
 ```
 
-## Development
-
-### Project Structure
+## Workspace Structure
 
 ```
-mars/
-├── mars                    # Main CLI entry point
-├── lib/
-│   ├── ui.sh              # Terminal UI components
-│   ├── yaml.sh            # YAML parser
-│   ├── config.sh          # Config management
-│   ├── git.sh             # Git operations
-│   └── commands/          # Command implementations
-├── build.sh               # Build distribution
-├── install.sh             # Installer script
-└── test/                  # Test suite
+my-project/
+├── mars.yaml           # Workspace configuration
+├── claude.md           # Shared Claude config (optional)
+├── .claude/            # Shared Claude folder (optional)
+├── .gitignore          # Contains 'repos/'
+└── repos/              # Cloned repositories (gitignored)
+    ├── frontend/
+    ├── backend/
+    └── shared/
 ```
 
-### Running Tests
+## Installation
+
+### npm (recommended)
 
 ```bash
-# Run all tests
-bash test/test_yaml.sh
-bash test/test_config.sh
-bash test/test_integration.sh
+npm install -g @dean0x/mars
 ```
 
-### Building
+Or run without installing:
 
 ```bash
-./build.sh    # Output: dist/mars
+npx @dean0x/mars --help
 ```
 
-**Important:** `dist/mars` is committed for easy installation. Always run `./build.sh` before committing changes to source files.
+### Homebrew (macOS/Linux)
 
-## Releasing
+```bash
+brew install dean0x/tap/mars
+```
 
-Releases are automated via GitHub Actions. To create a release:
+### Shell Script
 
-1. Update version in `package.json`
-2. Commit the change
-3. Create and push a tag: `git tag v0.1.1 && git push origin v0.1.1`
+```bash
+curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
+```
 
-The CI will automatically:
-- Run tests
-- Verify the tag version matches `package.json`
-- Create a GitHub Release with auto-generated notes
-- Publish to npm
-- Update the Homebrew formula
+Install a specific version:
 
-### Required Secrets (for maintainers)
+```bash
+MARS_VERSION=0.1.1 curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
+```
 
-| Secret | Repository | Purpose |
-|--------|------------|---------|
-| `NPM_TOKEN` | mars | npm publish access token |
-| `HOMEBREW_TAP_TOKEN` | mars | PAT with repo scope to trigger homebrew-tap workflow |
+### Manual
+
+```bash
+git clone https://github.com/dean0x/mars.git
+cd mars
+./build.sh
+cp dist/mars ~/.local/bin/  # or anywhere in PATH
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and release process.
 
 ## License
 
