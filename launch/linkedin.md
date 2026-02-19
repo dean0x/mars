@@ -22,8 +22,6 @@ So I built **Mars** — a CLI that manages multiple Git repos as one workspace.
 
 The tag system is the key workflow enabler. Tag repos by team, by function, by whatever makes sense — then target operations at specific groups. Run frontend tests without touching backend repos. Create a branch only where you need it.
 
-For teams using Claude Code for AI-assisted development, Mars also shares `claude.md` configuration across all repos in the workspace — consistent AI context without manual syncing.
-
 **Technical choices:**
 
 • Pure bash 3.2+ — works on every Mac out of the box

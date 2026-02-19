@@ -25,12 +25,11 @@
 | gita | Python | CLI-based | Group and manage repos, Python dependency |
 | myrepos | Perl | .mrconfig | Config-file driven, runs arbitrary commands |
 | meta | Node | meta.json | JSON config, plugin system |
-| **Mars** | Bash | mars.yaml | Tag-based filtering, Claude-aware, zero deps |
+| **Mars** | Bash | mars.yaml | Tag-based filtering, zero deps |
 
 Key differentiators for Mars:
 - Pure bash 3.2+ — no runtime dependencies
 - Tag-based filtering as a first-class concept
-- Shared Claude Code configuration
 
 ### 3. Getting Started with Mars
 
@@ -56,12 +55,12 @@ Include code examples and expected output.
 - Multiple tags per repo: `--tags frontend,web`
 - Real-world example: deploying frontend repos vs backend repos
 
-### 6. Claude Configuration Sharing
+### 6. Workspace Organization Patterns
 
-- What `claude.md` and `.claude/` do in Claude Code
-- How Mars shares them at the workspace level
-- Workspace structure that enables this
-- Use case: consistent AI context across a polyrepo
+- Structuring teams: frontend/backend/infra/shared tags
+- Tagging strategies for different org sizes
+- Combining Mars with your editor/agent tooling
+- Workspace structure and gitignore patterns
 
 ### 7. Under the Hood
 
