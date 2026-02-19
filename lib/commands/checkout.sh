@@ -66,7 +66,7 @@ cmd_checkout() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -74,24 +74,24 @@ cmd_checkout() {
         if git_is_dirty "$full_path" && [[ $force -eq 0 ]]; then
             ui_step_error "Uncommitted changes: $path"
             dirty_repos+=("$path")
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
             continue
         fi
 
         # Check if branch exists
         if ! git_branch_exists "$full_path" "$branch_name"; then
             ui_step_error "Branch not found: $path"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
             continue
         fi
 
         # Checkout
         if git_checkout "$full_path" "$branch_name"; then
             ui_step_done "Checked out:" "$path → $branch_name"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed: $path - $GIT_ERROR"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 

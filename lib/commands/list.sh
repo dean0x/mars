@@ -46,7 +46,7 @@ cmd_list() {
 
     while IFS= read -r repo; do
         [[ -z "$repo" ]] && continue
-        ((total++))
+        total=$((total + 1))
 
         local path
         path=$(yaml_get_path "$repo")
@@ -57,7 +57,7 @@ cmd_list() {
         local cloned_text
         if [[ -d "$full_path" ]]; then
             cloned_text="$(ui_green "yes")"
-            ((cloned++))
+            cloned=$((cloned + 1))
         else
             cloned_text="$(ui_dim "no")"
         fi

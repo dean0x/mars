@@ -46,7 +46,7 @@ cmd_status() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_table_row "$path" "$(ui_dim "not cloned")" "-" "-"
-            ((not_cloned++))
+            not_cloned=$((not_cloned + 1))
             continue
         fi
 

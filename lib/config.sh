@@ -98,7 +98,7 @@ config_repo_count() {
     repos=$(config_get_repos "$tag")
 
     while IFS= read -r repo; do
-        [[ -n "$repo" ]] && ((count++))
+        [[ -n "$repo" ]] && count=$((count + 1))
     done <<< "$repos"
 
     printf '%d' "$count"

@@ -51,7 +51,7 @@ cmd_sync() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -69,7 +69,7 @@ cmd_sync() {
             else
                 ui_step_done "Updated:" "$path"
             fi
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             # Check for conflicts
             if [[ "$GIT_ERROR" == *"conflict"* ]] || [[ "$GIT_ERROR" == *"CONFLICT"* ]]; then
@@ -78,7 +78,7 @@ cmd_sync() {
             else
                 ui_step_error "Failed: $path"
             fi
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 
