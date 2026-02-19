@@ -39,6 +39,7 @@ cmd_list() {
     fi
 
     # Table header
+    ui_table_widths 24 24 10
     ui_table_header "Path" "Tags" "Cloned"
 
     local total=0

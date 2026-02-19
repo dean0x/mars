@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create test temp directory
-        run: mkdir -p /tmp/claude
+        run: mkdir -p /tmp/mars
 
       - name: Run YAML parser tests
         run: bash test/test_yaml.sh

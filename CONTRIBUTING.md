@@ -90,7 +90,7 @@ bash test/test_config.sh
 bash test/test_integration.sh
 ```
 
-Tests use `/tmp/claude/` for temporary files.
+Tests use `/tmp/mars/` for temporary files.
 
 ## Building
 

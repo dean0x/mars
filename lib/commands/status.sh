@@ -33,6 +33,7 @@ cmd_status() {
     fi
 
     # Table header
+    ui_table_widths 24 20 12 14
     ui_table_header "Repository" "Branch" "Status" "Sync"
 
     local not_cloned=0

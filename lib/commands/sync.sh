@@ -87,9 +87,8 @@ cmd_sync() {
     if [[ ${#conflict_repos[@]} -gt 0 ]]; then
         ui_info "$(ui_yellow "Repositories with conflicts:")"
         for r in "${conflict_repos[@]}"; do
-            ui_info "  - $r"
+            ui_info "  $(ui_yellow "$r")"
         done
-        ui_bar_line
     fi
 
     if [[ $fail_count -eq 0 ]]; then

@@ -21,6 +21,5 @@
 - Cross-repo command execution (`mars exec`)
 - Tag-based filtering for all operations
 - Parallel cloning (4 concurrent jobs)
-- Shared Claude configuration (`claude.md`, `.claude/`)
 - Clack-style terminal UI with Unicode/ASCII fallback
 - Distribution via npm, Homebrew, and curl installer

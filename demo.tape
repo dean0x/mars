@@ -26,10 +26,6 @@ Type "my-project"
 Enter
 Sleep 1s
 
-# Confirm Claude config (press enter for yes)
-Enter
-Sleep 1s
-
 # Step 2: Add repos with tags
 Type "mars add https://github.com/dean0x/mars-example-frontend.git --tags frontend,web"
 Enter

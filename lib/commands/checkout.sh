@@ -99,7 +99,6 @@ cmd_checkout() {
 
     if [[ ${#dirty_repos[@]} -gt 0 ]]; then
         ui_info "$(ui_yellow "Hint: Use --force to checkout despite uncommitted changes")"
-        ui_bar_line
     fi
 
     if [[ $fail_count -eq 0 ]]; then

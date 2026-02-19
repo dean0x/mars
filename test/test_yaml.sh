@@ -59,7 +59,7 @@ test_path_from_url() {
 test_parse_simple() {
     test_start "yaml_parse - simple config"
 
-    local test_file="/tmp/claude/mars_test_$$.yaml"
+    local test_file="/tmp/mars/mars_test_$$.yaml"
     cat > "$test_file" << 'EOF'
 version: 1
 
@@ -99,7 +99,7 @@ EOF
 test_get_repos_filter() {
     test_start "yaml_get_repos - filter by tag"
 
-    local test_file="/tmp/claude/mars_test_$$.yaml"
+    local test_file="/tmp/mars/mars_test_$$.yaml"
     cat > "$test_file" << 'EOF'
 version: 1
 workspace:
@@ -150,7 +150,7 @@ test_write_yaml() {
     YAML_REPO_PATHS=("repo")
     YAML_REPO_TAGS=("test,demo")
 
-    local test_file="/tmp/claude/mars_test_$$.yaml"
+    local test_file="/tmp/mars/mars_test_$$.yaml"
     yaml_write "$test_file"
 
     # Parse it back

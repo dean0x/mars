@@ -353,36 +353,75 @@ ui_progress() {
     printf '] %d%%' "$percent"
 }
 
+# --- ANSI-aware padding ---
+
+_ui_visible_len() {
+    local str="$1"
+    local stripped
+    stripped=$(printf '%s' "$str" | sed $'s/\033\\[[0-9;]*m//g')
+    printf '%d' "${#stripped}"
+}
+
+_ui_pad() {
+    local str="$1"
+    local target_width="$2"
+    local visible_len
+    visible_len=$(_ui_visible_len "$str")
+    local pad=$((target_width - visible_len))
+    [[ $pad -lt 0 ]] && pad=0
+    printf '%s%*s' "$str" "$pad" ""
+}
+
 # --- Table ---
-# Usage: ui_table_header "Col1" "Col2" "Col3"
-#        ui_table_row "val1" "val2" "val3"
-_TABLE_WIDTHS=()
+# Usage: ui_table_widths 24 20 12 14
+#        ui_table_header "Col1" "Col2" "Col3" "Col4"
+#        ui_table_row "val1" "val2" "val3" "val4"
+_TABLE_COL_WIDTHS=()
+
+ui_table_widths() {
+    _TABLE_COL_WIDTHS=("$@")
+}
 
 ui_table_header() {
     local cols=("$@")
-    _TABLE_WIDTHS=()
+    local i=0
 
     printf '%s  ' "$(ui_bar)"
     for col in "${cols[@]}"; do
-        printf '%-20s' "$(ui_bold "$col")"
-        _TABLE_WIDTHS+=("20")
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        local padded
+        padded=$(printf "%-${w}s" "$col")
+        printf '%s' "$(ui_bold "$padded")"
+        i=$((i + 1))
     done
     printf '\n'
 
     # Separator
     printf '%s  ' "$(ui_bar)"
+    i=0
     for _ in "${cols[@]}"; do
-        printf '%-20s' "$(ui_dim "────────────────────")"
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        local dashes=""
+        local j=0
+        while [[ $j -lt $w ]]; do
+            dashes+="─"
+            j=$((j + 1))
+        done
+        printf '%s' "$(ui_dim "$dashes")"
+        i=$((i + 1))
     done
     printf '\n'
 }
 
 ui_table_row() {
     local vals=("$@")
+    local i=0
 
     printf '%s  ' "$(ui_bar)"
     for val in "${vals[@]}"; do
-        printf '%-20s' "$val"
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        _ui_pad "$val" "$w"
+        i=$((i + 1))
     done
     printf '\n'
 }

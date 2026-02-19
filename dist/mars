@@ -366,36 +366,75 @@ ui_progress() {
     printf '] %d%%' "$percent"
 }
 
+# --- ANSI-aware padding ---
+
+_ui_visible_len() {
+    local str="$1"
+    local stripped
+    stripped=$(printf '%s' "$str" | sed $'s/\033\\[[0-9;]*m//g')
+    printf '%d' "${#stripped}"
+}
+
+_ui_pad() {
+    local str="$1"
+    local target_width="$2"
+    local visible_len
+    visible_len=$(_ui_visible_len "$str")
+    local pad=$((target_width - visible_len))
+    [[ $pad -lt 0 ]] && pad=0
+    printf '%s%*s' "$str" "$pad" ""
+}
+
 # --- Table ---
-# Usage: ui_table_header "Col1" "Col2" "Col3"
-#        ui_table_row "val1" "val2" "val3"
-_TABLE_WIDTHS=()
+# Usage: ui_table_widths 24 20 12 14
+#        ui_table_header "Col1" "Col2" "Col3" "Col4"
+#        ui_table_row "val1" "val2" "val3" "val4"
+_TABLE_COL_WIDTHS=()
+
+ui_table_widths() {
+    _TABLE_COL_WIDTHS=("$@")
+}
 
 ui_table_header() {
     local cols=("$@")
-    _TABLE_WIDTHS=()
+    local i=0
 
     printf '%s  ' "$(ui_bar)"
     for col in "${cols[@]}"; do
-        printf '%-20s' "$(ui_bold "$col")"
-        _TABLE_WIDTHS+=("20")
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        local padded
+        padded=$(printf "%-${w}s" "$col")
+        printf '%s' "$(ui_bold "$padded")"
+        i=$((i + 1))
     done
     printf '\n'
 
     # Separator
     printf '%s  ' "$(ui_bar)"
+    i=0
     for _ in "${cols[@]}"; do
-        printf '%-20s' "$(ui_dim "────────────────────")"
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        local dashes=""
+        local j=0
+        while [[ $j -lt $w ]]; do
+            dashes+="─"
+            j=$((j + 1))
+        done
+        printf '%s' "$(ui_dim "$dashes")"
+        i=$((i + 1))
     done
     printf '\n'
 }
 
 ui_table_row() {
     local vals=("$@")
+    local i=0
 
     printf '%s  ' "$(ui_bar)"
     for val in "${vals[@]}"; do
-        printf '%-20s' "$val"
+        local w="${_TABLE_COL_WIDTHS[$i]:-20}"
+        _ui_pad "$val" "$w"
+        i=$((i + 1))
     done
     printf '\n'
 }
@@ -1089,7 +1128,6 @@ git_exec() {
 
 cmd_init() {
     local workspace_name=""
-    local create_claude=0
 
     # Check if already initialized
     if [[ -f "mars.yaml" ]]; then
@@ -1112,33 +1150,10 @@ cmd_init() {
     ui_step_done "Workspace:" "$workspace_name"
     ui_bar_line
 
-    # Ask about claude config
-    if ui_confirm "Create claude.md and .claude/ for shared config?"; then
-        create_claude=1
-        ui_step_done "Claude config: enabled"
-    else
-        ui_step_done "Claude config: skipped"
-    fi
-
-    ui_bar_line
-
     # Initialize workspace
     if ! config_init "$workspace_name"; then
         ui_step_error "Failed to initialize workspace"
         return 1
-    fi
-
-    # Create claude files if requested
-    if [[ $create_claude -eq 1 ]]; then
-        mkdir -p ".claude"
-        cat > "claude.md" << 'EOF'
-# Workspace Configuration
-
-This is a shared Claude configuration for the workspace.
-Add your project-specific instructions here.
-EOF
-        ui_step_done "Created claude.md"
-        ui_step_done "Created .claude/"
     fi
 
     ui_step_done "Created mars.yaml"
@@ -1297,6 +1312,7 @@ cmd_status() {
     fi
 
     # Table header
+    ui_table_widths 24 20 12 14
     ui_table_header "Repository" "Branch" "Status" "Sync"
 
     local not_cloned=0
@@ -1558,7 +1574,6 @@ cmd_checkout() {
 
     if [[ ${#dirty_repos[@]} -gt 0 ]]; then
         ui_info "$(ui_yellow "Hint: Use --force to checkout despite uncommitted changes")"
-        ui_bar_line
     fi
 
     if [[ $fail_count -eq 0 ]]; then
@@ -1662,9 +1677,8 @@ cmd_sync() {
     if [[ ${#conflict_repos[@]} -gt 0 ]]; then
         ui_info "$(ui_yellow "Repositories with conflicts:")"
         for r in "${conflict_repos[@]}"; do
-            ui_info "  - $r"
+            ui_info "  $(ui_yellow "$r")"
         done
-        ui_bar_line
     fi
 
     if [[ $fail_count -eq 0 ]]; then
@@ -1927,6 +1941,7 @@ cmd_list() {
     fi
 
     # Table header
+    ui_table_widths 24 24 10
     ui_table_header "Path" "Tags" "Cloned"
 
     local total=0
