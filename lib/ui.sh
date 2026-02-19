@@ -279,6 +279,11 @@ ui_spinner_start() {
     local message="$1"
     _SPINNER_MSG="$message"
 
+    # Skip spinner animation when stdout is not a terminal (piped/redirected)
+    if [[ ! -t 1 ]]; then
+        return
+    fi
+
     (
         local i=0
         local frame_count=${#S_SPINNER_FRAMES[@]}
@@ -304,8 +309,10 @@ ui_spinner_stop() {
     fi
     _SPINNER_PID=""
 
-    # Clear spinner line
-    printf '\r\033[K'
+    # Clear spinner line only when connected to a terminal
+    if [[ -t 1 ]]; then
+        printf '\r\033[K'
+    fi
 
     # Show final message if provided
     if [[ -n "$final_message" ]]; then
@@ -322,7 +329,9 @@ ui_spinner_error() {
     fi
     _SPINNER_PID=""
 
-    printf '\r\033[K'
+    if [[ -t 1 ]]; then
+        printf '\r\033[K'
+    fi
     ui_step_error "$message"
 }
 

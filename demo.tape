@@ -43,10 +43,10 @@ Type "mars add https://github.com/dean0x/mars-example-shared.git --tags shared"
 Enter
 Sleep 1.5s
 
-# Step 3: Clone all repos
+# Step 3: Clone all repos (spinners show per-repo progress)
 Type "mars clone"
 Enter
-Sleep 4s
+Sleep 8s
 
 # Step 4: Check status
 Type "mars status"

@@ -28,9 +28,13 @@ cmd_exec() {
                 return 1
                 ;;
             *)
-                # Everything else is the command
-                command="$*"
-                break
+                if [[ -z "$command" ]]; then
+                    command="$1"
+                else
+                    ui_step_error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
                 ;;
         esac
     done

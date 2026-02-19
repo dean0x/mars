@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Exit cleanly on SIGPIPE (e.g., mars clone | grep, mars status | head)
+trap 'exit 0' PIPE
+
 MARS_VERSION="0.1.1"
 
 
@@ -289,6 +292,11 @@ ui_spinner_start() {
     local message="$1"
     _SPINNER_MSG="$message"
 
+    # Skip spinner animation when stdout is not a terminal (piped/redirected)
+    if [[ ! -t 1 ]]; then
+        return
+    fi
+
     (
         local i=0
         local frame_count=${#S_SPINNER_FRAMES[@]}
@@ -314,8 +322,10 @@ ui_spinner_stop() {
     fi
     _SPINNER_PID=""
 
-    # Clear spinner line
-    printf '\r\033[K'
+    # Clear spinner line only when connected to a terminal
+    if [[ -t 1 ]]; then
+        printf '\r\033[K'
+    fi
 
     # Show final message if provided
     if [[ -n "$final_message" ]]; then
@@ -332,7 +342,9 @@ ui_spinner_error() {
     fi
     _SPINNER_PID=""
 
-    printf '\r\033[K'
+    if [[ -t 1 ]]; then
+        printf '\r\033[K'
+    fi
     ui_step_error "$message"
 }
 
@@ -1140,10 +1152,7 @@ EOF
 
 # === lib/commands/clone.sh ===
 # Mars CLI - clone command
-# Clone configured repositories with parallel execution
-
-# Maximum concurrent clone jobs
-CLONE_PARALLEL_LIMIT=4
+# Clone configured repositories with per-repo progress
 
 cmd_clone() {
     local tag=""
@@ -1184,140 +1193,73 @@ cmd_clone() {
         return 1
     fi
 
-    # Count repos
+    # Count total repos
     local total=0
-    local to_clone=()
-    local already_cloned=()
-
     while IFS= read -r repo; do
         [[ -z "$repo" ]] && continue
         total=$((total + 1))
-
-        local path
-        path=$(yaml_get_path "$repo")
-        local full_path="$MARS_REPOS_DIR/$path"
-
-        if [[ -d "$full_path" ]] && [[ $force -eq 0 ]]; then
-            already_cloned+=("$repo")
-        else
-            to_clone+=("$repo")
-        fi
     done <<< "$repos"
 
-    # Report already cloned
-    for repo in "${already_cloned[@]}"; do
-        local path
-        path=$(yaml_get_path "$repo")
-        ui_step_done "Already cloned:" "$path"
-    done
-
-    if [[ ${#to_clone[@]} -eq 0 ]]; then
-        ui_outro "All repositories already cloned"
-        return 0
-    fi
-
-    ui_bar_line
-    ui_info "Cloning ${#to_clone[@]} of $total repositories..."
-    ui_bar_line
-
-    # Clone with parallelism
-    local pids=()
-    local repo_for_pid=()
+    local current=0
     local success_count=0
+    local skip_count=0
     local fail_count=0
-    local failed_repos=()
 
-    for repo in "${to_clone[@]}"; do
+    # Clone each repo with spinner feedback
+    while IFS= read -r repo; do
+        [[ -z "$repo" ]] && continue
+        current=$((current + 1))
+
         local url
         url=$(yaml_get_url "$repo")
         local path
         path=$(yaml_get_path "$repo")
         local full_path="$MARS_REPOS_DIR/$path"
 
+        # Already cloned?
+        if [[ -d "$full_path" ]] && [[ $force -eq 0 ]]; then
+            ui_step_done "Already cloned:" "$path"
+            skip_count=$((skip_count + 1))
+            continue
+        fi
+
         # Remove existing directory if force
         if [[ -d "$full_path" ]] && [[ $force -eq 1 ]]; then
             rm -rf "$full_path"
         fi
 
-        # Wait if at parallel limit
-        while [[ ${#pids[@]} -ge $CLONE_PARALLEL_LIMIT ]]; do
-            _clone_wait_one
-        done
+        # Show spinner while cloning
+        ui_spinner_start "Cloning $path... ($current/$total)"
 
-        # Start clone in background
-        (
-            if git clone --quiet "$url" "$full_path" 2>/dev/null; then
-                exit 0
-            else
-                exit 1
+        local clone_err
+        if clone_err=$(git clone --quiet "$url" "$full_path" 2>&1); then
+            ui_spinner_stop
+            ui_step_done "Cloned:" "$path"
+            success_count=$((success_count + 1))
+        else
+            ui_spinner_error "Failed to clone: $path"
+            if [[ -n "$clone_err" ]]; then
+                ui_info "$(ui_dim "$clone_err")"
             fi
-        ) &
-
-        pids+=($!)
-        repo_for_pid+=("$repo")
-    done
-
-    # Wait for remaining jobs
-    while [[ ${#pids[@]} -gt 0 ]]; do
-        _clone_wait_one
-    done
+            fail_count=$((fail_count + 1))
+        fi
+    done <<< "$repos"
 
     # Summary
     ui_bar_line
 
     if [[ $fail_count -eq 0 ]]; then
-        ui_outro "Cloned $success_count repositories successfully"
+        local msg="Cloned $success_count repositories successfully"
+        if [[ $skip_count -gt 0 ]]; then
+            msg="$msg, $skip_count already cloned"
+        fi
+        ui_outro "$msg"
     else
-        for repo in "${failed_repos[@]}"; do
-            local path
-            path=$(yaml_get_path "$repo")
-            ui_step_error "Failed: $path"
-        done
         ui_outro_cancel "Cloned $success_count, failed $fail_count"
         return 1
     fi
 
     return 0
-}
-
-# Helper to wait for one clone job
-_clone_wait_one() {
-    if [[ ${#pids[@]} -eq 0 ]]; then
-        return
-    fi
-
-    # Wait for any process to complete
-    local pid
-    for i in "${!pids[@]}"; do
-        pid="${pids[$i]}"
-        if ! kill -0 "$pid" 2>/dev/null; then
-            # Process finished
-            wait "$pid"
-            local exit_code=$?
-            local repo="${repo_for_pid[$i]}"
-            local path
-            path=$(yaml_get_path "$repo")
-
-            if [[ $exit_code -eq 0 ]]; then
-                ui_step_done "Cloned:" "$path"
-                success_count=$((success_count + 1))
-            else
-                ui_step_error "Failed to clone: $path"
-                fail_count=$((fail_count + 1))
-                failed_repos+=("$repo")
-            fi
-
-            # Remove from arrays
-            unset 'pids[i]'
-            unset 'repo_for_pid[i]'
-            pids=("${pids[@]}")
-            repo_for_pid=("${repo_for_pid[@]}")
-            return
-        fi
-    done
-
-    # If all still running, sleep briefly
-    sleep 0.1
 }
 
 # === lib/commands/status.sh ===
@@ -1767,9 +1709,13 @@ cmd_exec() {
                 return 1
                 ;;
             *)
-                # Everything else is the command
-                command="$*"
-                break
+                if [[ -z "$command" ]]; then
+                    command="$1"
+                else
+                    ui_step_error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
                 ;;
         esac
     done
