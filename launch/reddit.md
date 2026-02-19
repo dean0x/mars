@@ -2,36 +2,6 @@
 
 ---
 
-## r/ClaudeAI
-
-**Title:** Built a CLI tool for managing shared Claude config across multiple repos
-
-**Body:**
-
-I work with 10+ repos and wanted a way to share `claude.md` and `.claude/` configuration across all of them when using Claude Code.
-
-So I built **Mars** — a polyrepo workspace manager that, among other things, lets you maintain shared Claude configuration at the workspace level. When you open any repo in the workspace, Claude Code picks up the shared context automatically.
-
-**How it works:**
-
-1. `mars init` — creates a workspace with optional `claude.md` and `.claude/` directory
-2. `mars add <repo-url> --tags backend,api` — add repos with tags
-3. `mars clone` — clones everything into `repos/` subdirectory
-4. Open any repo — Claude Code walks up and finds the shared config
-
-Beyond the Claude integration, it handles the usual multi-repo operations: parallel clone, cross-repo status/branching/syncing, tag-based filtering, and running arbitrary commands across repos.
-
-Pure bash 3.2+, zero dependencies.
-
-**Install:**
-```bash
-npm i -g @dean0x/mars
-```
-
-GitHub: https://github.com/dean0x/mars
-
----
-
 ## r/commandline
 
 **Title:** Mars — a polyrepo workspace manager written in pure bash 3.2+

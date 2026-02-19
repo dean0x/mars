@@ -32,11 +32,13 @@ Pure bash 3.2+, zero dependencies.
 
 ## Tweet 3 (Differentiator)
 
-The killer feature: shared Claude configuration.
+The killer feature: tag-based filtering.
 
-Your `claude.md` and `.claude/` directory work across all repos in the workspace.
+Tag repos by team or function, then target any operation at a subset:
 
-Multi-repo Claude Code workflows, finally.
+`mars exec "npm test" --tag frontend`
+
+No more "run this everywhere and hope for the best."
 
 ---
 
