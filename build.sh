@@ -19,7 +19,7 @@ cat > "$OUTPUT_FILE" << 'HEADER'
 
 set -euo pipefail
 
-MARS_VERSION="0.1.0"
+MARS_VERSION="0.1.1"
 
 HEADER
 

@@ -245,14 +245,14 @@ ui_select() {
                     ((selected > 0)) && ((selected--))
                     ;;
                 '[B') # Down
-                    ((selected < count - 1)) && ((selected++))
+                    ((selected < count - 1)) && selected=$((selected + 1))
                     ;;
             esac
         elif [[ "$key" == "" ]]; then
             # Enter pressed
             break
         elif [[ "$key" == "j" ]]; then
-            ((selected < count - 1)) && ((selected++))
+            ((selected < count - 1)) && selected=$((selected + 1))
         elif [[ "$key" == "k" ]]; then
             ((selected > 0)) && ((selected--))
         fi

@@ -66,7 +66,7 @@ cmd_exec() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -92,10 +92,10 @@ cmd_exec() {
 
         if [[ $exit_code -eq 0 ]]; then
             ui_step_done "Success:" "$path"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed (exit $exit_code): $path"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
 
         ui_bar_line

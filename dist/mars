@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-MARS_VERSION="0.1.0"
+MARS_VERSION="0.1.1"
 
 
 # === lib/ui.sh ===
@@ -255,14 +255,14 @@ ui_select() {
                     ((selected > 0)) && ((selected--))
                     ;;
                 '[B') # Down
-                    ((selected < count - 1)) && ((selected++))
+                    ((selected < count - 1)) && selected=$((selected + 1))
                     ;;
             esac
         elif [[ "$key" == "" ]]; then
             # Enter pressed
             break
         elif [[ "$key" == "j" ]]; then
-            ((selected < count - 1)) && ((selected++))
+            ((selected < count - 1)) && selected=$((selected + 1))
         elif [[ "$key" == "k" ]]; then
             ((selected > 0)) && ((selected--))
         fi
@@ -738,7 +738,7 @@ config_repo_count() {
     repos=$(config_get_repos "$tag")
 
     while IFS= read -r repo; do
-        [[ -n "$repo" ]] && ((count++))
+        [[ -n "$repo" ]] && count=$((count + 1))
     done <<< "$repos"
 
     printf '%d' "$count"
@@ -1191,7 +1191,7 @@ cmd_clone() {
 
     while IFS= read -r repo; do
         [[ -z "$repo" ]] && continue
-        ((total++))
+        total=$((total + 1))
 
         local path
         path=$(yaml_get_path "$repo")
@@ -1300,10 +1300,10 @@ _clone_wait_one() {
 
             if [[ $exit_code -eq 0 ]]; then
                 ui_step_done "Cloned:" "$path"
-                ((success_count++))
+                success_count=$((success_count + 1))
             else
                 ui_step_error "Failed to clone: $path"
-                ((fail_count++))
+                fail_count=$((fail_count + 1))
                 failed_repos+=("$repo")
             fi
 
@@ -1368,7 +1368,7 @@ cmd_status() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_table_row "$path" "$(ui_dim "not cloned")" "-" "-"
-            ((not_cloned++))
+            not_cloned=$((not_cloned + 1))
             continue
         fi
 
@@ -1474,7 +1474,7 @@ cmd_branch() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -1483,10 +1483,10 @@ cmd_branch() {
             # Try to checkout instead
             if git_checkout "$full_path" "$branch_name"; then
                 ui_step_done "Checked out existing:" "$path → $branch_name"
-                ((success_count++))
+                success_count=$((success_count + 1))
             else
                 ui_step_error "Failed to checkout existing branch: $path"
-                ((fail_count++))
+                fail_count=$((fail_count + 1))
             fi
             continue
         fi
@@ -1494,10 +1494,10 @@ cmd_branch() {
         # Create new branch
         if git_branch "$full_path" "$branch_name"; then
             ui_step_done "Created:" "$path → $branch_name"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed: $path - $GIT_ERROR"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 
@@ -1583,7 +1583,7 @@ cmd_checkout() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -1591,24 +1591,24 @@ cmd_checkout() {
         if git_is_dirty "$full_path" && [[ $force -eq 0 ]]; then
             ui_step_error "Uncommitted changes: $path"
             dirty_repos+=("$path")
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
             continue
         fi
 
         # Check if branch exists
         if ! git_branch_exists "$full_path" "$branch_name"; then
             ui_step_error "Branch not found: $path"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
             continue
         fi
 
         # Checkout
         if git_checkout "$full_path" "$branch_name"; then
             ui_step_done "Checked out:" "$path → $branch_name"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed: $path - $GIT_ERROR"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 
@@ -1684,7 +1684,7 @@ cmd_sync() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -1702,7 +1702,7 @@ cmd_sync() {
             else
                 ui_step_done "Updated:" "$path"
             fi
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             # Check for conflicts
             if [[ "$GIT_ERROR" == *"conflict"* ]] || [[ "$GIT_ERROR" == *"CONFLICT"* ]]; then
@@ -1711,7 +1711,7 @@ cmd_sync() {
             else
                 ui_step_error "Failed: $path"
             fi
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 
@@ -1805,7 +1805,7 @@ cmd_exec() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -1831,10 +1831,10 @@ cmd_exec() {
 
         if [[ $exit_code -eq 0 ]]; then
             ui_step_done "Success:" "$path"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed (exit $exit_code): $path"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
 
         ui_bar_line
@@ -1988,7 +1988,7 @@ cmd_list() {
 
     while IFS= read -r repo; do
         [[ -z "$repo" ]] && continue
-        ((total++))
+        total=$((total + 1))
 
         local path
         path=$(yaml_get_path "$repo")
@@ -1999,7 +1999,7 @@ cmd_list() {
         local cloned_text
         if [[ -d "$full_path" ]]; then
             cloned_text="$(ui_green "yes")"
-            ((cloned++))
+            cloned=$((cloned + 1))
         else
             cloned_text="$(ui_dim "no")"
         fi

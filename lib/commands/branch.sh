@@ -60,7 +60,7 @@ cmd_branch() {
 
         if [[ ! -d "$full_path" ]]; then
             ui_step_done "Skipped (not cloned):" "$path"
-            ((skip_count++))
+            skip_count=$((skip_count + 1))
             continue
         fi
 
@@ -69,10 +69,10 @@ cmd_branch() {
             # Try to checkout instead
             if git_checkout "$full_path" "$branch_name"; then
                 ui_step_done "Checked out existing:" "$path → $branch_name"
-                ((success_count++))
+                success_count=$((success_count + 1))
             else
                 ui_step_error "Failed to checkout existing branch: $path"
-                ((fail_count++))
+                fail_count=$((fail_count + 1))
             fi
             continue
         fi
@@ -80,10 +80,10 @@ cmd_branch() {
         # Create new branch
         if git_branch "$full_path" "$branch_name"; then
             ui_step_done "Created:" "$path → $branch_name"
-            ((success_count++))
+            success_count=$((success_count + 1))
         else
             ui_step_error "Failed: $path - $GIT_ERROR"
-            ((fail_count++))
+            fail_count=$((fail_count + 1))
         fi
     done <<< "$repos"
 

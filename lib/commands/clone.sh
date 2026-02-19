@@ -51,7 +51,7 @@ cmd_clone() {
 
     while IFS= read -r repo; do
         [[ -z "$repo" ]] && continue
-        ((total++))
+        total=$((total + 1))
 
         local path
         path=$(yaml_get_path "$repo")
@@ -160,10 +160,10 @@ _clone_wait_one() {
 
             if [[ $exit_code -eq 0 ]]; then
                 ui_step_done "Cloned:" "$path"
-                ((success_count++))
+                success_count=$((success_count + 1))
             else
                 ui_step_error "Failed to clone: $path"
-                ((fail_count++))
+                fail_count=$((fail_count + 1))
                 failed_repos+=("$repo")
             fi
 
