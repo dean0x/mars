@@ -64,7 +64,7 @@ assert_dir_exists() {
 test_config_init() {
     test_start "config_init - creates workspace"
 
-    local test_dir="/tmp/claude/mars_test_$$"
+    local test_dir="/tmp/mars/mars_test_$$"
     local orig_dir="$PWD"
     mkdir -p "$test_dir"
     cd "$test_dir"
@@ -91,7 +91,7 @@ test_config_init() {
 test_config_find_root() {
     test_start "config_find_root - finds mars.yaml upward"
 
-    local test_dir="/tmp/claude/mars_test_$$"
+    local test_dir="/tmp/mars/mars_test_$$"
     local orig_dir="$PWD"
     mkdir -p "$test_dir/repos/subrepo/deep"
 
@@ -117,7 +117,7 @@ test_config_find_root() {
 test_config_repo_count() {
     test_start "config_repo_count"
 
-    local test_dir="/tmp/claude/mars_test_$$"
+    local test_dir="/tmp/mars/mars_test_$$"
     mkdir -p "$test_dir"
 
     cat > "$test_dir/mars.yaml" << 'EOF'

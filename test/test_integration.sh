@@ -41,7 +41,7 @@ test_fail() {
 
 setup_test_dir() {
     cleanup
-    TEST_DIR="/tmp/claude/mars_integ_$$_$RANDOM"
+    TEST_DIR="/tmp/mars/mars_integ_$$_$RANDOM"
     mkdir -p "$TEST_DIR"
     cd "$TEST_DIR"
 }
@@ -78,7 +78,7 @@ test_init_creates_files() {
     setup_test_dir
 
     # Run init with stdin to answer prompts
-    echo -e "test-workspace\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "test-workspace" | "$MARS_CMD" init > /dev/null 2>&1
 
     if [[ -f "mars.yaml" ]] && [[ -f ".gitignore" ]] && [[ -d "repos" ]]; then
         test_pass
@@ -91,7 +91,7 @@ test_add_repo() {
     test_start "mars add - adds repository to config"
 
     setup_test_dir
-    echo -e "add-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "add-test" | "$MARS_CMD" init > /dev/null 2>&1
 
     "$MARS_CMD" add "git@github.com:test/repo.git" --tags "test,demo" > /dev/null 2>&1
 
@@ -106,7 +106,7 @@ test_list_repos() {
     test_start "mars list - shows configured repos"
 
     setup_test_dir
-    echo -e "list-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "list-test" | "$MARS_CMD" init > /dev/null 2>&1
     "$MARS_CMD" add "git@github.com:test/repo1.git" > /dev/null 2>&1
     "$MARS_CMD" add "git@github.com:test/repo2.git" > /dev/null 2>&1
 
@@ -124,7 +124,7 @@ test_status_not_cloned() {
     test_start "mars status - shows not cloned"
 
     setup_test_dir
-    echo -e "status-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "status-test" | "$MARS_CMD" init > /dev/null 2>&1
     "$MARS_CMD" add "git@github.com:test/repo.git" > /dev/null 2>&1
 
     local output
@@ -141,7 +141,7 @@ test_clone_with_real_repo() {
     test_start "mars clone - clones real repository"
 
     setup_test_dir
-    echo -e "clone-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "clone-test" | "$MARS_CMD" init > /dev/null 2>&1
 
     # Use a small, public repo for testing
     "$MARS_CMD" add "https://github.com/octocat/Hello-World.git" > /dev/null 2>&1
@@ -161,7 +161,7 @@ test_exec_command() {
     test_start "mars exec - runs command in repos"
 
     setup_test_dir
-    echo -e "exec-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "exec-test" | "$MARS_CMD" init > /dev/null 2>&1
     "$MARS_CMD" add "https://github.com/octocat/Hello-World.git" > /dev/null 2>&1
     "$MARS_CMD" clone > /dev/null 2>&1
 
@@ -179,7 +179,7 @@ test_tag_filtering() {
     test_start "mars --tag filtering"
 
     setup_test_dir
-    echo -e "tag-test\nn" | "$MARS_CMD" init > /dev/null 2>&1
+    echo "tag-test" | "$MARS_CMD" init > /dev/null 2>&1
     "$MARS_CMD" add "git@github.com:test/frontend.git" --tags "frontend" > /dev/null 2>&1
     "$MARS_CMD" add "git@github.com:test/backend.git" --tags "backend" > /dev/null 2>&1
 

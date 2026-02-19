@@ -6,7 +6,7 @@
 
 Manage multiple Git repositories as one workspace.
 
-Tag-based filtering, parallel operations, shared Claude configuration.
+Tag-based filtering, parallel operations, zero dependencies.
 
 <p align="center">
   <img src="demo.gif" alt="Mars CLI demo" width="800" />
@@ -16,7 +16,6 @@ Tag-based filtering, parallel operations, shared Claude configuration.
 
 - **Polyrepo without the pain** — one CLI for status, branching, syncing across all repos
 - **Tag-based filtering** — target subsets of repos (`--tag frontend`, `--tag backend`)
-- **Shared Claude config** — `claude.md` and `.claude/` directory shared across repos
 - **Zero dependencies** — pure bash 3.2+, works on macOS out of the box
 
 ## Quick Install
@@ -96,8 +95,6 @@ defaults:
 ```
 my-project/
 ├── mars.yaml           # Workspace configuration
-├── claude.md           # Shared Claude config (optional)
-├── .claude/            # Shared Claude folder (optional)
 ├── .gitignore          # Contains 'repos/'
 └── repos/              # Cloned repositories (gitignored)
     ├── frontend/
