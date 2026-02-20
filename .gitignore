@@ -13,3 +13,6 @@ repos/
 
 # Test artifacts
 /tmp/
+
+# Launch materials (marketing)
+/launch/
