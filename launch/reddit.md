@@ -2,6 +2,36 @@
 
 ---
 
+## r/ClaudeAI
+
+**Title:** Managing Claude Code across a polyrepo — what's your workflow?
+
+**Body:**
+
+I work across 10+ repos on the same project. Every time I start a session, I'm cd-ing between repos, checking what branch each one is on, pulling latest, running commands in the right subset.
+
+I built a small CLI called **Mars** that treats multiple repos as one workspace. You tag repos by function and target operations at subsets:
+
+```bash
+mars init
+mars add git@github.com:org/api.git --tags backend
+mars add git@github.com:org/web.git --tags frontend
+mars clone                              # parallel, 4 jobs
+mars status                             # branch + sync state for every repo
+mars exec "npm test" --tag frontend     # run tests on just frontend repos
+mars sync --rebase                      # pull latest everywhere
+```
+
+It's pure bash 3.2+ with zero dependencies beyond git — no Python, no Node runtime. The workspace lives in a directory with all your repos cloned under it, so your CLAUDE.md and `.claude/` directory at the workspace root are naturally picked up when you open any repo underneath.
+
+Curious how others here handle multi-repo workflows with Claude Code. Are you maintaining separate context per repo, or have you found ways to share configuration across them?
+
+**Install:** `npm i -g @dean0x/mars` or `brew install dean0x/tap/mars`
+
+GitHub: https://github.com/dean0x/mars
+
+---
+
 ## r/commandline
 
 **Title:** Mars — a polyrepo workspace manager written in pure bash 3.2+

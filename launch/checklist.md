@@ -19,7 +19,7 @@
 | Day 1 | Polish README, record demo GIF, set GitHub metadata | `demo.tape` |
 | Day 2 | LinkedIn post (morning, professional audience) | `linkedin.md` |
 | Day 3 | Show HN (Tue-Thu, 8-10 AM ET) + X thread | `hackernews.md`, `twitter.md` |
-| Day 4 | r/commandline + r/devops | `reddit.md` |
+| Day 4 | r/ClaudeAI + r/commandline + r/devops | `reddit.md` |
 | Day 5 | r/programming + r/git | `reddit.md` |
 | Week 2 | Dev.to blog post | `devto-outline.md` |
 
