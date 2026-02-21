@@ -1,4 +1,4 @@
-Output demo.gif
+Output .github/assets/demo.gif
 
 Set FontSize 18
 Set Width 1200

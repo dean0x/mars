@@ -9,7 +9,7 @@ Manage multiple Git repositories as one workspace.
 Tag-based filtering, parallel operations, zero dependencies.
 
 <p align="center">
-  <img src="demo.gif" alt="Mars CLI demo" width="800" />
+  <img src=".github/assets/demo.gif" alt="Mars CLI demo" width="800" />
 </p>
 
 ## Why Mars?
