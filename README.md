@@ -131,7 +131,7 @@ curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
 Install a specific version:
 
 ```bash
-MARS_VERSION=0.1.1 curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
+MARS_VERSION=0.1.2 curl -fsSL https://raw.githubusercontent.com/dean0x/mars/main/install.sh | bash
 ```
 
 ### Manual

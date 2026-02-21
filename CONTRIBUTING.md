@@ -80,7 +80,7 @@ YAML_REPO_TAGS=()
 - Avoid subshells where possible (breaks global variable updates)
 - Check return codes explicitly and propagate errors
 - Use `ui_step_error()`/`ui_step_done()` for user feedback
-- Parallel operations limited to 4 concurrent jobs (`CLONE_PARALLEL_LIMIT`)
+- Clone operations run sequentially with per-repo spinner feedback
 
 ## Running Tests
 

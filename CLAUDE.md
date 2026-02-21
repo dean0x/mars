@@ -84,7 +84,7 @@ defaults:
 - Check return codes explicitly and propagate errors
 - Use `ui_step_error()`/`ui_step_done()` for user feedback
 - Tests use `/tmp/mars/` for temporary files
-- Parallel operations limited to 4 concurrent jobs (`CLONE_PARALLEL_LIMIT`)
+- Clone operations run sequentially with per-repo spinner feedback
 
 ## Release Process
 

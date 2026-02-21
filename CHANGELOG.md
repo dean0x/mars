@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.2] - 2026-02-21
+
+### Fixed
+- Clone command rewritten from parallel background jobs to sequential with per-repo spinner feedback
+- Exec command argument parsing no longer silently swallows extra arguments
+- Table column alignment now uses explicit widths with ANSI-aware padding
+
+### Changed
+- Removed Claude config prompts from `mars init` (no longer asks about claude.md/.claude)
+- Spinner and cursor cleanup only runs when connected to a terminal (safe for piped output)
+
+### Added
+- SIGPIPE trap for clean exit when output is piped (e.g., `mars status | head`)
+- `ui_table_widths` function for explicit column width control
+
 ## [0.1.1] - 2026-02-19
 
 ### Changed
