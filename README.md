@@ -15,7 +15,10 @@ Tag-based filtering, parallel operations, zero dependencies.
 
 ## Why Mars?
 
-- **Polyrepo without the pain** — one CLI for status, branching, syncing across all repos
+Coding agents can take features end-to-end in one repo — but most real engineering spans many. Mars creates a workspace where all repos live under one tree, so agents inherit shared config and developers get coordinated operations across the stack.
+
+- **Workspace-level agent config** — config at the workspace root is inherited by every repo automatically
+- **Coordinated branches** — `mars branch feature-x --tag backend` across all relevant repos
 - **Tag-based filtering** — target subsets of repos (`--tag frontend`, `--tag backend`)
 - **Zero dependencies** — pure bash 3.2+, works on macOS out of the box
 
