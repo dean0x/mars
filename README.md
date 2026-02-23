@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm](https://img.shields.io/npm/v/@dean0x/mars)](https://www.npmjs.com/package/@dean0x/mars)
 [![CI](https://github.com/dean0x/mars/actions/workflows/ci.yml/badge.svg)](https://github.com/dean0x/mars/actions/workflows/ci.yml)
+[![Website](https://img.shields.io/badge/Website-dean0x.github.io%2Fx%2Fmars-blue)](https://dean0x.github.io/x/mars/)
 
 Manage multiple Git repositories as one workspace.
 
